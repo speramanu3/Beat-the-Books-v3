@@ -1,20 +1,28 @@
 import React, { useMemo } from 'react';
 import { Paper, Grid, Typography, Box, Avatar, Skeleton } from '@mui/material';
 import { format } from 'date-fns';
-import { getDefaultLogo } from '../utils/teamLogos';
+import { getTeamLogo } from '../utils/teamLogos';
 import DetailedOddsView from './DetailedOddsView';
 import { getProcessedOdds, formatOdds } from '../utils/oddsProcessing';
 
-const GameCard = ({ game }) => {
+const GameCard = ({ game, selectedBookmakers }) => {
+  // Create a filtered game object with only selected bookmakers
+  const filteredGame = useMemo(() => ({
+    ...game,
+    bookmakers: game.bookmakers.filter(bookmaker => 
+      selectedBookmakers.includes(bookmaker.title)
+    )
+  }), [game, selectedBookmakers]);
+
   // Get odds for both teams for spreads and totals
   const odds = useMemo(() => ({
-    homeMoneyline: getProcessedOdds(game, 'h2h', game.home_team),
-    awayMoneyline: getProcessedOdds(game, 'h2h', game.away_team),
-    homeSpread: getProcessedOdds(game, 'spreads', game.home_team),
-    awaySpread: getProcessedOdds(game, 'spreads', game.away_team),
-    overTotal: getProcessedOdds(game, 'totals', 'Over'),
-    underTotal: getProcessedOdds(game, 'totals', 'Under')
-  }), [game]);
+    homeMoneyline: getProcessedOdds(filteredGame, 'h2h', game.home_team),
+    awayMoneyline: getProcessedOdds(filteredGame, 'h2h', game.away_team),
+    homeSpread: getProcessedOdds(filteredGame, 'spreads', game.home_team),
+    awaySpread: getProcessedOdds(filteredGame, 'spreads', game.away_team),
+    overTotal: getProcessedOdds(filteredGame, 'totals', 'Over'),
+    underTotal: getProcessedOdds(filteredGame, 'totals', 'Under')
+  }), [filteredGame, game.home_team, game.away_team]);
 
   const TeamDisplay = ({ team, isHome }) => (
     <Box 
@@ -26,7 +34,7 @@ const GameCard = ({ game }) => {
       aria-label={`${team} ${isHome ? 'Home' : 'Away'} Team`}
     >
       <Avatar
-        src={getDefaultLogo(game.sport_key)}
+        src={getTeamLogo(game.sport_key, team)}
         alt={`${team} logo`}
         sx={{ width: 40, height: 40, mr: 2 }}
       />
@@ -168,7 +176,7 @@ const GameCard = ({ game }) => {
           </Grid>
         </Grid>
       </Grid>
-      <DetailedOddsView game={game} />
+      <DetailedOddsView game={filteredGame} />
     </Paper>
   );
 };
