@@ -1,11 +1,14 @@
 import React, { useMemo } from 'react';
-import { Paper, Grid, Typography, Box, Avatar, Skeleton } from '@mui/material';
+import { Paper, Grid, Typography, Box, Avatar, useTheme, useMediaQuery } from '@mui/material';
 import { format } from 'date-fns';
 import { getTeamLogo } from '../utils/teamLogos';
 import DetailedOddsView from './DetailedOddsView';
 import { getProcessedOdds, formatOdds } from '../utils/oddsProcessing';
 
 const GameCard = ({ game, selectedBookmakers }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   // Create a filtered game object with only selected bookmakers
   const filteredGame = useMemo(() => ({
     ...game,
@@ -28,7 +31,7 @@ const GameCard = ({ game, selectedBookmakers }) => {
     <Box 
       display="flex" 
       alignItems="center" 
-      mb={1}
+      mb={isMobile ? 0.5 : 1}
       component="article"
       role="article"
       aria-label={`${team} ${isHome ? 'Home' : 'Away'} Team`}
@@ -36,13 +39,29 @@ const GameCard = ({ game, selectedBookmakers }) => {
       <Avatar
         src={getTeamLogo(game.sport_key, team)}
         alt={`${team} logo`}
-        sx={{ width: 40, height: 40, mr: 2 }}
+        sx={{ 
+          width: isMobile ? 30 : 40, 
+          height: isMobile ? 30 : 40, 
+          mr: isMobile ? 1 : 2 
+        }}
       />
       <Box>
-        <Typography variant="h6" component="span">
+        <Typography 
+          variant={isMobile ? "body1" : "h6"} 
+          component="span"
+          sx={{ 
+            fontSize: isMobile ? '0.9rem' : undefined,
+            fontWeight: 'bold'
+          }}
+        >
           {team}
         </Typography>
-        <Typography variant="caption" color="text.secondary" display="block">
+        <Typography 
+          variant="caption" 
+          color="text.secondary" 
+          display="block"
+          sx={{ fontSize: isMobile ? '0.7rem' : '0.75rem' }}
+        >
           {isHome ? 'Home' : 'Away'}
         </Typography>
       </Box>
@@ -51,22 +70,44 @@ const GameCard = ({ game, selectedBookmakers }) => {
 
   const MoneylineSection = ({ title, awayOdds, homeOdds }) => (
     <Box role="region" aria-label={`${title} odds`}>
-      <Typography variant="subtitle2" gutterBottom color="text.secondary">
+      <Typography 
+        variant="subtitle2" 
+        gutterBottom 
+        color="text.secondary"
+        sx={{ 
+          fontSize: isMobile ? '0.7rem' : undefined,
+          mb: isMobile ? 0.5 : 1
+        }}
+      >
         {title}
       </Typography>
-      <Box mb={1}>
-        <Typography variant="body1">
+      <Box mb={isMobile ? 0.5 : 1}>
+        <Typography 
+          variant="body1"
+          sx={{ fontSize: isMobile ? '0.85rem' : undefined }}
+        >
           {formatOdds(awayOdds?.odds)}
         </Typography>
-        <Typography variant="caption" color="text.secondary">
+        <Typography 
+          variant="caption" 
+          color="text.secondary"
+          sx={{ fontSize: isMobile ? '0.65rem' : '0.75rem' }}
+        >
           via {awayOdds?.bookmaker || 'N/A'}
         </Typography>
       </Box>
       <Box>
-        <Typography variant="body1">
+        <Typography 
+          variant="body1"
+          sx={{ fontSize: isMobile ? '0.85rem' : undefined }}
+        >
           {formatOdds(homeOdds?.odds)}
         </Typography>
-        <Typography variant="caption" color="text.secondary">
+        <Typography 
+          variant="caption" 
+          color="text.secondary"
+          sx={{ fontSize: isMobile ? '0.65rem' : '0.75rem' }}
+        >
           via {homeOdds?.bookmaker || 'N/A'}
         </Typography>
       </Box>
@@ -75,22 +116,44 @@ const GameCard = ({ game, selectedBookmakers }) => {
 
   const SpreadSection = ({ title, awayOdds, homeOdds }) => (
     <Box role="region" aria-label={`${title} odds`}>
-      <Typography variant="subtitle2" gutterBottom color="text.secondary">
+      <Typography 
+        variant="subtitle2" 
+        gutterBottom 
+        color="text.secondary"
+        sx={{ 
+          fontSize: isMobile ? '0.7rem' : undefined,
+          mb: isMobile ? 0.5 : 1
+        }}
+      >
         {title}
       </Typography>
-      <Box mb={1}>
-        <Typography variant="body1">
+      <Box mb={isMobile ? 0.5 : 1}>
+        <Typography 
+          variant="body1"
+          sx={{ fontSize: isMobile ? '0.85rem' : undefined }}
+        >
           {awayOdds?.points > 0 ? '+' : ''}{awayOdds?.points} ({formatOdds(awayOdds?.odds)})
         </Typography>
-        <Typography variant="caption" color="text.secondary">
+        <Typography 
+          variant="caption" 
+          color="text.secondary"
+          sx={{ fontSize: isMobile ? '0.65rem' : '0.75rem' }}
+        >
           via {awayOdds?.bookmaker || 'N/A'}
         </Typography>
       </Box>
       <Box>
-        <Typography variant="body1">
+        <Typography 
+          variant="body1"
+          sx={{ fontSize: isMobile ? '0.85rem' : undefined }}
+        >
           {homeOdds?.points > 0 ? '+' : ''}{homeOdds?.points} ({formatOdds(homeOdds?.odds)})
         </Typography>
-        <Typography variant="caption" color="text.secondary">
+        <Typography 
+          variant="caption" 
+          color="text.secondary"
+          sx={{ fontSize: isMobile ? '0.65rem' : '0.75rem' }}
+        >
           via {homeOdds?.bookmaker || 'N/A'}
         </Typography>
       </Box>
@@ -99,22 +162,44 @@ const GameCard = ({ game, selectedBookmakers }) => {
 
   const TotalsSection = ({ title, overOdds, underOdds }) => (
     <Box role="region" aria-label={`${title} odds`}>
-      <Typography variant="subtitle2" gutterBottom color="text.secondary">
+      <Typography 
+        variant="subtitle2" 
+        gutterBottom 
+        color="text.secondary"
+        sx={{ 
+          fontSize: isMobile ? '0.7rem' : undefined,
+          mb: isMobile ? 0.5 : 1
+        }}
+      >
         {title}
       </Typography>
-      <Box mb={1}>
-        <Typography variant="body1">
+      <Box mb={isMobile ? 0.5 : 1}>
+        <Typography 
+          variant="body1"
+          sx={{ fontSize: isMobile ? '0.85rem' : undefined }}
+        >
           O {overOdds?.points} ({formatOdds(overOdds?.odds)})
         </Typography>
-        <Typography variant="caption" color="text.secondary">
+        <Typography 
+          variant="caption" 
+          color="text.secondary"
+          sx={{ fontSize: isMobile ? '0.65rem' : '0.75rem' }}
+        >
           via {overOdds?.bookmaker || 'N/A'}
         </Typography>
       </Box>
       <Box>
-        <Typography variant="body1">
+        <Typography 
+          variant="body1"
+          sx={{ fontSize: isMobile ? '0.85rem' : undefined }}
+        >
           U {underOdds?.points} ({formatOdds(underOdds?.odds)})
         </Typography>
-        <Typography variant="caption" color="text.secondary">
+        <Typography 
+          variant="caption" 
+          color="text.secondary"
+          sx={{ fontSize: isMobile ? '0.65rem' : '0.75rem' }}
+        >
           via {underOdds?.bookmaker || 'N/A'}
         </Typography>
       </Box>
@@ -124,21 +209,24 @@ const GameCard = ({ game, selectedBookmakers }) => {
   return (
     <Paper 
       elevation={3} 
-      sx={{ p: 2 }}
+      sx={{ p: isMobile ? 1 : 2 }}
       component="article"
       role="article"
       aria-label={`${game.away_team} vs ${game.home_team} Game Card`}
     >
-      <Grid container spacing={2}>
-        {/* Team Information (33% width) */}
-        <Grid item xs={4}>
+      <Grid container spacing={isMobile ? 1 : 2}>
+        {/* Team Information */}
+        <Grid item xs={12} sm={4}>
           <Box>
             <TeamDisplay team={game.away_team} isHome={false} />
             <TeamDisplay team={game.home_team} isHome={true} />
             <Typography 
               variant="body2" 
               color="text.secondary" 
-              sx={{ mt: 1 }}
+              sx={{ 
+                mt: isMobile ? 0.5 : 1,
+                fontSize: isMobile ? '0.7rem' : undefined
+              }}
               role="time"
               aria-label="Game start time"
             >
@@ -147,9 +235,9 @@ const GameCard = ({ game, selectedBookmakers }) => {
           </Box>
         </Grid>
 
-        {/* Odds Display (67% width) */}
-        <Grid item xs={8}>
-          <Grid container spacing={2}>
+        {/* Odds Display */}
+        <Grid item xs={12} sm={8}>
+          <Grid container spacing={isMobile ? 1 : 2}>
             <Grid item xs={4}>
               <MoneylineSection 
                 title="Moneyline"
