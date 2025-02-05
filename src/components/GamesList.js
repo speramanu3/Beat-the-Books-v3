@@ -28,21 +28,30 @@ const GamesList = () => {
   const [selectedBookmakers, setSelectedBookmakers] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  const shouldUpdate = () => {
-    const cachedTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
-    if (!cachedTimestamp) return true;
+  const shouldUpdate = (timestamp) => {
+    if (!timestamp) return true;
 
-    const lastUpdate = new Date(cachedTimestamp);
+    const lastUpdate = new Date(parseInt(timestamp));
     const now = new Date();
     
     // Get today's 8 AM ET
     const todayEight = new Date();
     todayEight.setHours(8, 0, 0, 0);
-    // Adjust for ET (UTC-5)
-    todayEight.setHours(todayEight.getHours() + 5);
+    todayEight.setMinutes(0, 0, 0);
+    
+    // Convert to ET by adding 5 hours (ET is UTC-5)
+    const etOffset = 5;
+    todayEight.setHours(todayEight.getHours() + etOffset);
 
+    // For testing, log the times
+    console.log(' Current time:', now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    console.log(' Last update:', lastUpdate.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    console.log(' Today 8 AM ET:', todayEight.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    
     // Update if it's past 8 AM ET today and our last update was before 8 AM ET today
-    return now >= todayEight && lastUpdate < todayEight;
+    const needsUpdate = now >= todayEight && lastUpdate < todayEight;
+    console.log(' Needs update:', needsUpdate);
+    return needsUpdate;
   };
 
   const processAndSetGames = (gamesData) => {
@@ -64,21 +73,8 @@ const GamesList = () => {
       setLoading(true);
       setError(null);
 
-      // First, check localStorage
-      const cachedData = localStorage.getItem(CACHE_KEY);
-      const cachedTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
-      
-      if (cachedData && cachedTimestamp && !shouldUpdate()) {
-        console.log('Using cached data from localStorage');
-        const parsedData = JSON.parse(cachedData);
-        processAndSetGames(parsedData);
-        setLastUpdated(new Date(cachedTimestamp));
-        setLoading(false);
-        return;
-      }
-
-      // If no valid cache, try Firebase
-      console.log('Checking Firebase for data...');
+      // First, try Firebase since it might have the most up-to-date data
+      console.log(' Checking Firebase for data...');
       const gamesRef = ref(database, 'games');
       const snapshot = await get(gamesRef);
       const timestampRef = ref(database, 'lastUpdated');
@@ -86,23 +82,31 @@ const GamesList = () => {
 
       if (snapshot.exists() && timeSnapshot.exists()) {
         const firebaseTimestamp = timeSnapshot.val();
-        if (!shouldUpdate()) {
-          console.log('Using data from Firebase');
+        console.log(' Found data in Firebase, checking if update needed...');
+        
+        if (!shouldUpdate(firebaseTimestamp)) {
+          console.log(' Using data from Firebase');
           const data = snapshot.val();
           processAndSetGames(data);
           
-          // Cache in localStorage
+          // Update localStorage with Firebase data
           localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-          localStorage.setItem(CACHE_TIMESTAMP_KEY, firebaseTimestamp);
+          localStorage.setItem(CACHE_TIMESTAMP_KEY, firebaseTimestamp.toString());
           
-          setLastUpdated(new Date(firebaseTimestamp));
+          setLastUpdated(new Date(parseInt(firebaseTimestamp)));
           setLoading(false);
           return;
         }
+        console.log(' Firebase data needs update');
+      } else {
+        console.log(' No data found in Firebase');
       }
 
-      // If we need fresh data, fetch from API
-      console.log('Fetching fresh data from API');
+      // If we get here, either:
+      // 1. No Firebase data exists
+      // 2. Firebase data exists but needs update
+      // 3. Firebase data couldn't be accessed
+      console.log(' Fetching fresh data from API');
       const sportPromises = SUPPORTED_SPORTS.map(sport =>
         axios.get(`${config.API_BASE_URL}/sports/${sport}/odds`, {
           params: {
@@ -111,13 +115,13 @@ const GamesList = () => {
             markets: 'h2h,spreads,totals',
             oddsFormat: 'american'
           }
+        }).catch(error => {
+          console.warn(` ${SPORT_LABELS[sport]} API Error:`, error);
+          return { data: [] };
         })
       );
 
       const responses = await Promise.all(sportPromises);
-      
-      // Log raw API response
-      console.log('API Responses:', responses.map(r => r.data));
       
       // Combine all games
       const allGames = responses.reduce((acc, response) => {
@@ -132,18 +136,35 @@ const GamesList = () => {
         new Date(a.commence_time) - new Date(b.commence_time)
       );
 
-      // Store in Firebase and localStorage
-      const now = new Date().toISOString();
-      await Promise.all([
-        set(ref(database, 'games'), sortedGames),
-        set(ref(database, 'lastUpdated'), now)
-      ]);
+      console.log(` Received ${sortedGames.length} games from API`);
 
-      localStorage.setItem(CACHE_KEY, JSON.stringify(sortedGames));
-      localStorage.setItem(CACHE_TIMESTAMP_KEY, now);
+      // Store in Firebase and localStorage
+      const now = new Date();
+      try {
+        console.log(' Storing data in Firebase...');
+        await Promise.all([
+          set(ref(database, 'games'), sortedGames)
+            .then(() => console.log(' Games stored in Firebase'))
+            .catch(error => console.error(' Firebase games storage error:', error)),
+          set(ref(database, 'lastUpdated'), now.getTime())
+            .then(() => console.log(' Timestamp stored in Firebase'))
+            .catch(error => console.error(' Firebase timestamp storage error:', error))
+        ]);
+      } catch (firebaseError) {
+        console.error(' Firebase storage error:', firebaseError);
+      }
+
+      // Update localStorage
+      try {
+        localStorage.setItem(CACHE_KEY, JSON.stringify(sortedGames));
+        localStorage.setItem(CACHE_TIMESTAMP_KEY, now.getTime().toString());
+        console.log(' Data cached in localStorage');
+      } catch (storageError) {
+        console.error(' localStorage error:', storageError);
+      }
 
       processAndSetGames(sortedGames);
-      setLastUpdated(new Date(now));
+      setLastUpdated(now);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch games data');
       console.error('Error fetching games:', err.response?.data || err);
@@ -242,25 +263,35 @@ const GamesList = () => {
         </Tabs>
       </Paper>
 
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="caption" color="text.secondary" align="center" display="block">
-          Last Updated: {lastUpdated ? lastUpdated.toLocaleString('en-US', {
+      <Box sx={{ mb: 2, textAlign: 'center' }}>
+        <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
+          Last Updated: {lastUpdated ? new Date(lastUpdated).toLocaleString('en-US', {
             timeZone: 'America/New_York',
-            dateStyle: 'medium',
-            timeStyle: 'medium'
-          }) : 'Never'} ET
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: true
+          }) + ' ET' : 'Never'}
         </Typography>
-        <Typography variant="caption" color="text.secondary" align="center" display="block">
+        <Typography variant="caption" color="text.secondary" display="block">
           Next Update: {lastUpdated ? (() => {
             const nextUpdate = new Date(lastUpdated);
-            nextUpdate.setDate(nextUpdate.getDate() + 1);  // Add one day
-            nextUpdate.setHours(8, 0, 0, 0);  // Set to 8 AM
+            nextUpdate.setHours(8, 0, 0, 0);
+            if (new Date() >= nextUpdate) {
+              nextUpdate.setDate(nextUpdate.getDate() + 1);
+            }
             return nextUpdate.toLocaleString('en-US', {
               timeZone: 'America/New_York',
-              dateStyle: 'medium',
-              timeStyle: 'short'
-            });
-          })() : 'Unknown'} ET
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+              hour: 'numeric',
+              minute: 'numeric',
+              hour12: true
+            }) + ' ET';
+          })() : 'Never'}
         </Typography>
       </Box>
 
