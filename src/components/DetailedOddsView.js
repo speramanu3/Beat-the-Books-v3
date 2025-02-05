@@ -11,12 +11,17 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Paper
+  Paper,
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { formatOdds, validateOdds } from '../utils/oddsProcessing';
 
 const DetailedOddsView = ({ game }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
   const getMarketOdds = useMemo(() => (marketKey) => {
     const allOdds = [];
     
@@ -34,13 +39,9 @@ const DetailedOddsView = ({ game }) => {
       });
     });
 
-    // Sort odds from highest to lowest value
     return allOdds.sort((a, b) => {
-      // For positive odds (underdogs), higher is better
       if (a.odds > 0 && b.odds > 0) return b.odds - a.odds;
-      // For negative odds (favorites), less negative is better
       if (a.odds < 0 && b.odds < 0) return b.odds - a.odds;
-      // When comparing positive vs negative, positive is higher value
       return b.odds - a.odds;
     });
   }, [game]);
@@ -48,7 +49,6 @@ const DetailedOddsView = ({ game }) => {
   const OddsTable = ({ title, marketKey, showPoints = false }) => {
     const odds = useMemo(() => {
       const allOdds = getMarketOdds(marketKey);
-      // Group odds by team/outcome
       const groupedOdds = allOdds.reduce((acc, odd) => {
         if (!acc[odd.team]) {
           acc[odd.team] = [];
@@ -57,7 +57,6 @@ const DetailedOddsView = ({ game }) => {
         return acc;
       }, {});
 
-      // Sort within each group and flatten
       return Object.values(groupedOdds)
         .map(teamOdds => teamOdds.sort((a, b) => {
           if (a.odds > 0 && b.odds > 0) return b.odds - a.odds;
@@ -69,18 +68,38 @@ const DetailedOddsView = ({ game }) => {
 
     return (
       <Box sx={{ mb: 3 }} role="region" aria-label={`${title} odds comparison`}>
-        <Typography variant="h6" gutterBottom>{title}</Typography>
-        <TableContainer component={Paper}>
+        <Typography 
+          variant="h6" 
+          gutterBottom
+          sx={{ fontSize: isMobile ? '0.9rem' : undefined }}
+        >
+          {title}
+        </Typography>
+        <TableContainer 
+          component={Paper}
+          sx={{ 
+            width: '100%',
+            overflow: 'hidden'
+          }}
+        >
           <Table 
             size="small" 
             aria-label={`${title} odds table`}
+            sx={{
+              '& .MuiTableCell-root': {
+                px: isMobile ? 1 : 2,
+                py: isMobile ? 0.5 : 1,
+                fontSize: isMobile ? '0.75rem' : undefined,
+                whiteSpace: 'nowrap'
+              }
+            }}
           >
             <TableHead>
               <TableRow>
-                <TableCell>Team/Outcome</TableCell>
-                {showPoints && <TableCell>Points</TableCell>}
-                <TableCell>Odds</TableCell>
-                <TableCell>Sportsbook</TableCell>
+                <TableCell sx={{ width: isMobile ? '30%' : 'auto' }}>Team/Outcome</TableCell>
+                {showPoints && <TableCell sx={{ width: isMobile ? '20%' : 'auto' }}>Points</TableCell>}
+                <TableCell sx={{ width: isMobile ? '25%' : 'auto' }}>Odds</TableCell>
+                <TableCell sx={{ width: isMobile ? '25%' : 'auto' }}>Sportsbook</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -94,7 +113,9 @@ const DetailedOddsView = ({ game }) => {
                     backgroundColor: index > 0 && odds[index - 1]?.team === odd.team ? 'rgba(0, 0, 0, 0.02)' : 'inherit'
                   }}
                 >
-                  <TableCell component="th" scope="row">{odd.team}</TableCell>
+                  <TableCell component="th" scope="row">
+                    {isMobile ? odd.team.split(' ').pop() : odd.team}
+                  </TableCell>
                   {showPoints && (
                     <TableCell>
                       {odd.points != null ? (odd.points > 0 ? '+' : '') + odd.points : 'N/A'}
@@ -112,22 +133,20 @@ const DetailedOddsView = ({ game }) => {
   };
 
   return (
-    <Box sx={{ mt: 2 }}>
-      <Accordion>
-        <AccordionSummary 
-          expandIcon={<ExpandMoreIcon />}
-          aria-controls="detailed-odds-content"
-          id="detailed-odds-header"
-        >
-          <Typography>View All Available Odds</Typography>
-        </AccordionSummary>
-        <AccordionDetails>
-          <OddsTable title="Moneyline" marketKey="h2h" />
-          <OddsTable title="Spread" marketKey="spreads" showPoints={true} />
-          <OddsTable title="Over/Under" marketKey="totals" showPoints={true} />
-        </AccordionDetails>
-      </Accordion>
-    </Box>
+    <Accordion>
+      <AccordionSummary
+        expandIcon={<ExpandMoreIcon />}
+        aria-controls="odds-comparison-content"
+        id="odds-comparison-header"
+      >
+        <Typography>View All Available Odds</Typography>
+      </AccordionSummary>
+      <AccordionDetails sx={{ p: isMobile ? 1 : 2 }}>
+        <OddsTable title="Moneyline" marketKey="h2h" />
+        <OddsTable title="Spread" marketKey="spreads" showPoints={true} />
+        <OddsTable title="Over/Under" marketKey="totals" showPoints={true} />
+      </AccordionDetails>
+    </Accordion>
   );
 };
 

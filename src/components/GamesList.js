@@ -4,18 +4,20 @@ import GameCard from './GameCard';
 import SportsbookFilter from './SportsbookFilter';
 import axios from 'axios';
 import config from '../config';
+import { database } from '../firebaseConfig';
+import { ref, set, get } from 'firebase/database';
 
 const SUPPORTED_SPORTS = ['americanfootball_nfl', 'basketball_nba', 'icehockey_nhl'];
-
-// Cache key in localStorage
-const CACHE_KEY = 'oddsCache';
-const CACHE_TIMESTAMP_KEY = 'oddsCacheTimestamp';
 
 const SPORT_LABELS = {
   'americanfootball_nfl': 'NFL',
   'basketball_nba': 'NBA',
   'icehockey_nhl': 'NHL'
 };
+
+// Cache keys
+const CACHE_KEY = 'gamesCache';
+const CACHE_TIMESTAMP_KEY = 'gamesCacheTimestamp';
 
 const GamesList = () => {
   const [games, setGames] = useState([]);
@@ -26,7 +28,7 @@ const GamesList = () => {
   const [selectedBookmakers, setSelectedBookmakers] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
 
-  const shouldUpdateCache = () => {
+  const shouldUpdate = () => {
     const cachedTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
     if (!cachedTimestamp) return true;
 
@@ -39,39 +41,72 @@ const GamesList = () => {
     // Adjust for ET (UTC-5)
     todayEight.setHours(todayEight.getHours() + 5);
 
-    // If it's past 8 AM ET today and our last update was before 8 AM ET today
+    // Update if it's past 8 AM ET today and our last update was before 8 AM ET today
     return now >= todayEight && lastUpdate < todayEight;
+  };
+
+  const processAndSetGames = (gamesData) => {
+    // Extract unique bookmakers
+    const allBookmakers = new Set();
+    gamesData.forEach(game => {
+      game.bookmakers.forEach(bookmaker => {
+        allBookmakers.add(bookmaker.title);
+      });
+    });
+
+    setGames(gamesData);
+    setAvailableBookmakers(Array.from(allBookmakers));
+    setSelectedBookmakers(Array.from(allBookmakers));
   };
 
   const fetchGames = async () => {
     try {
-      // Check if we should use cached data
-      if (!shouldUpdateCache()) {
-        const cachedData = localStorage.getItem(CACHE_KEY);
-        const timestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
-        if (cachedData && timestamp) {
-          const parsedData = JSON.parse(cachedData);
-          setGames(parsedData);
-          setLastUpdated(new Date(timestamp));
+      setLoading(true);
+      setError(null);
+
+      // First, check localStorage
+      const cachedData = localStorage.getItem(CACHE_KEY);
+      const cachedTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
+      
+      if (cachedData && cachedTimestamp && !shouldUpdate()) {
+        console.log('Using cached data from localStorage');
+        const parsedData = JSON.parse(cachedData);
+        processAndSetGames(parsedData);
+        setLastUpdated(new Date(cachedTimestamp));
+        setLoading(false);
+        return;
+      }
+
+      // If no valid cache, try Firebase
+      console.log('Checking Firebase for data...');
+      const gamesRef = ref(database, 'games');
+      const snapshot = await get(gamesRef);
+      const timestampRef = ref(database, 'lastUpdated');
+      const timeSnapshot = await get(timestampRef);
+
+      if (snapshot.exists() && timeSnapshot.exists()) {
+        const firebaseTimestamp = timeSnapshot.val();
+        if (!shouldUpdate()) {
+          console.log('Using data from Firebase');
+          const data = snapshot.val();
+          processAndSetGames(data);
           
-          // Set bookmakers from cached data
-          const allBookmakers = new Set();
-          parsedData.forEach(game => {
-            game.bookmakers.forEach(bookmaker => {
-              allBookmakers.add(bookmaker.title);
-            });
-          });
-          setAvailableBookmakers(Array.from(allBookmakers));
-          setSelectedBookmakers(Array.from(allBookmakers));
+          // Cache in localStorage
+          localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+          localStorage.setItem(CACHE_TIMESTAMP_KEY, firebaseTimestamp);
+          
+          setLastUpdated(new Date(firebaseTimestamp));
+          setLoading(false);
           return;
         }
       }
 
-      // If we need fresh data, fetch it
+      // If we need fresh data, fetch from API
+      console.log('Fetching fresh data from API');
       const sportPromises = SUPPORTED_SPORTS.map(sport =>
         axios.get(`${config.API_BASE_URL}/sports/${sport}/odds`, {
           params: {
-            apiKey: config.ODDS_API_KEY,
+            apiKey: config.API_KEY,
             regions: 'us,eu',
             markets: 'h2h,spreads,totals',
             oddsFormat: 'american'
@@ -81,15 +116,12 @@ const GamesList = () => {
 
       const responses = await Promise.all(sportPromises);
       
-      // Combine all games and collect unique bookmakers
-      const allBookmakers = new Set();
-      const allGames = responses.reduce((acc, response, index) => {
+      // Log raw API response
+      console.log('API Responses:', responses.map(r => r.data));
+      
+      // Combine all games
+      const allGames = responses.reduce((acc, response) => {
         if (response.data) {
-          response.data.forEach(game => {
-            game.bookmakers.forEach(bookmaker => {
-              allBookmakers.add(bookmaker.title);
-            });
-          });
           return [...acc, ...response.data];
         }
         return acc;
@@ -100,15 +132,18 @@ const GamesList = () => {
         new Date(a.commence_time) - new Date(b.commence_time)
       );
 
-      // Update cache
-      localStorage.setItem(CACHE_KEY, JSON.stringify(sortedGames));
+      // Store in Firebase and localStorage
       const now = new Date().toISOString();
-      localStorage.setItem(CACHE_TIMESTAMP_KEY, now);
-      setLastUpdated(new Date(now));
+      await Promise.all([
+        set(ref(database, 'games'), sortedGames),
+        set(ref(database, 'lastUpdated'), now)
+      ]);
 
-      setGames(sortedGames);
-      setAvailableBookmakers(Array.from(allBookmakers));
-      setSelectedBookmakers(Array.from(allBookmakers));
+      localStorage.setItem(CACHE_KEY, JSON.stringify(sortedGames));
+      localStorage.setItem(CACHE_TIMESTAMP_KEY, now);
+
+      processAndSetGames(sortedGames);
+      setLastUpdated(new Date(now));
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch games data');
       console.error('Error fetching games:', err.response?.data || err);
@@ -117,11 +152,9 @@ const GamesList = () => {
     }
   };
 
-  // Check for updates every minute
+  // Fetch games only once when component mounts
   useEffect(() => {
     fetchGames();
-    const interval = setInterval(fetchGames, 60000);
-    return () => clearInterval(interval);
   }, []);
 
   const handleSportChange = (event, newValue) => {
@@ -149,25 +182,26 @@ const GamesList = () => {
   const filteredGames = useMemo(() => {
     return games
       .filter(game => game.sport_key === selectedSport)
-      .map(game => ({
-        ...game,
-        bookmakers: game.bookmakers.filter(bookmaker => 
-          selectedBookmakers.includes(bookmaker.title)
-        )
-      }));
+      .filter(game => game.bookmakers.some(bookmaker => 
+        selectedBookmakers.includes(bookmaker.title)
+      ));
   }, [games, selectedSport, selectedBookmakers]);
 
-  if (loading) return (
-    <Typography variant="h6" sx={{ textAlign: 'center', my: 4 }}>
-      Loading games...
-    </Typography>
-  );
+  if (loading) {
+    return (
+      <Typography variant="h6" sx={{ textAlign: 'center', my: 4 }}>
+        Loading games...
+      </Typography>
+    );
+  }
 
-  if (error) return (
-    <Typography variant="h6" color="error" sx={{ textAlign: 'center', my: 4 }}>
-      {error}
-    </Typography>
-  );
+  if (error) {
+    return (
+      <Typography variant="h6" color="error" sx={{ textAlign: 'center', my: 4 }}>
+        {error}
+      </Typography>
+    );
+  }
 
   return (
     <Box>

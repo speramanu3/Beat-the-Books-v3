@@ -75,23 +75,30 @@ const GameCard = ({ game, selectedBookmakers }) => {
         gutterBottom 
         color="text.secondary"
         sx={{ 
-          fontSize: isMobile ? '0.7rem' : undefined,
-          mb: isMobile ? 0.5 : 1
+          fontSize: isMobile ? '0.65rem' : '0.75rem',
+          mb: isMobile ? 0.25 : 1
         }}
       >
         {title}
       </Typography>
-      <Box mb={isMobile ? 0.5 : 1}>
+      <Box mb={isMobile ? 0.25 : 1}>
         <Typography 
           variant="body1"
-          sx={{ fontSize: isMobile ? '0.85rem' : undefined }}
+          sx={{ 
+            fontSize: isMobile ? '0.75rem' : '0.9rem',
+            whiteSpace: 'nowrap'
+          }}
         >
           {formatOdds(awayOdds?.odds)}
         </Typography>
         <Typography 
           variant="caption" 
           color="text.secondary"
-          sx={{ fontSize: isMobile ? '0.65rem' : '0.75rem' }}
+          sx={{ 
+            fontSize: isMobile ? '0.6rem' : '0.75rem',
+            display: 'block',
+            whiteSpace: 'nowrap'
+          }}
         >
           via {awayOdds?.bookmaker || 'N/A'}
         </Typography>
@@ -99,14 +106,21 @@ const GameCard = ({ game, selectedBookmakers }) => {
       <Box>
         <Typography 
           variant="body1"
-          sx={{ fontSize: isMobile ? '0.85rem' : undefined }}
+          sx={{ 
+            fontSize: isMobile ? '0.75rem' : '0.9rem',
+            whiteSpace: 'nowrap'
+          }}
         >
           {formatOdds(homeOdds?.odds)}
         </Typography>
         <Typography 
           variant="caption" 
           color="text.secondary"
-          sx={{ fontSize: isMobile ? '0.65rem' : '0.75rem' }}
+          sx={{ 
+            fontSize: isMobile ? '0.6rem' : '0.75rem',
+            display: 'block',
+            whiteSpace: 'nowrap'
+          }}
         >
           via {homeOdds?.bookmaker || 'N/A'}
         </Typography>
@@ -121,23 +135,30 @@ const GameCard = ({ game, selectedBookmakers }) => {
         gutterBottom 
         color="text.secondary"
         sx={{ 
-          fontSize: isMobile ? '0.7rem' : undefined,
-          mb: isMobile ? 0.5 : 1
+          fontSize: isMobile ? '0.65rem' : '0.75rem',
+          mb: isMobile ? 0.25 : 1
         }}
       >
         {title}
       </Typography>
-      <Box mb={isMobile ? 0.5 : 1}>
+      <Box mb={isMobile ? 0.25 : 1}>
         <Typography 
           variant="body1"
-          sx={{ fontSize: isMobile ? '0.85rem' : undefined }}
+          sx={{ 
+            fontSize: isMobile ? '0.75rem' : '0.9rem',
+            whiteSpace: 'nowrap'
+          }}
         >
           {awayOdds?.points > 0 ? '+' : ''}{awayOdds?.points} ({formatOdds(awayOdds?.odds)})
         </Typography>
         <Typography 
           variant="caption" 
           color="text.secondary"
-          sx={{ fontSize: isMobile ? '0.65rem' : '0.75rem' }}
+          sx={{ 
+            fontSize: isMobile ? '0.6rem' : '0.75rem',
+            display: 'block',
+            whiteSpace: 'nowrap'
+          }}
         >
           via {awayOdds?.bookmaker || 'N/A'}
         </Typography>
@@ -145,14 +166,21 @@ const GameCard = ({ game, selectedBookmakers }) => {
       <Box>
         <Typography 
           variant="body1"
-          sx={{ fontSize: isMobile ? '0.85rem' : undefined }}
+          sx={{ 
+            fontSize: isMobile ? '0.75rem' : '0.9rem',
+            whiteSpace: 'nowrap'
+          }}
         >
           {homeOdds?.points > 0 ? '+' : ''}{homeOdds?.points} ({formatOdds(homeOdds?.odds)})
         </Typography>
         <Typography 
           variant="caption" 
           color="text.secondary"
-          sx={{ fontSize: isMobile ? '0.65rem' : '0.75rem' }}
+          sx={{ 
+            fontSize: isMobile ? '0.6rem' : '0.75rem',
+            display: 'block',
+            whiteSpace: 'nowrap'
+          }}
         >
           via {homeOdds?.bookmaker || 'N/A'}
         </Typography>
@@ -167,23 +195,30 @@ const GameCard = ({ game, selectedBookmakers }) => {
         gutterBottom 
         color="text.secondary"
         sx={{ 
-          fontSize: isMobile ? '0.7rem' : undefined,
-          mb: isMobile ? 0.5 : 1
+          fontSize: isMobile ? '0.65rem' : '0.75rem',
+          mb: isMobile ? 0.25 : 1
         }}
       >
         {title}
       </Typography>
-      <Box mb={isMobile ? 0.5 : 1}>
+      <Box mb={isMobile ? 0.25 : 1}>
         <Typography 
           variant="body1"
-          sx={{ fontSize: isMobile ? '0.85rem' : undefined }}
+          sx={{ 
+            fontSize: isMobile ? '0.75rem' : '0.9rem',
+            whiteSpace: 'nowrap'
+          }}
         >
           O {overOdds?.points} ({formatOdds(overOdds?.odds)})
         </Typography>
         <Typography 
           variant="caption" 
           color="text.secondary"
-          sx={{ fontSize: isMobile ? '0.65rem' : '0.75rem' }}
+          sx={{ 
+            fontSize: isMobile ? '0.6rem' : '0.75rem',
+            display: 'block',
+            whiteSpace: 'nowrap'
+          }}
         >
           via {overOdds?.bookmaker || 'N/A'}
         </Typography>
@@ -191,14 +226,21 @@ const GameCard = ({ game, selectedBookmakers }) => {
       <Box>
         <Typography 
           variant="body1"
-          sx={{ fontSize: isMobile ? '0.85rem' : undefined }}
+          sx={{ 
+            fontSize: isMobile ? '0.75rem' : '0.9rem',
+            whiteSpace: 'nowrap'
+          }}
         >
           U {underOdds?.points} ({formatOdds(underOdds?.odds)})
         </Typography>
         <Typography 
           variant="caption" 
           color="text.secondary"
-          sx={{ fontSize: isMobile ? '0.65rem' : '0.75rem' }}
+          sx={{ 
+            fontSize: isMobile ? '0.6rem' : '0.75rem',
+            display: 'block',
+            whiteSpace: 'nowrap'
+          }}
         >
           via {underOdds?.bookmaker || 'N/A'}
         </Typography>
@@ -209,23 +251,29 @@ const GameCard = ({ game, selectedBookmakers }) => {
   return (
     <Paper 
       elevation={3} 
-      sx={{ p: isMobile ? 1 : 2 }}
+      sx={{ 
+        p: isMobile ? 1 : 2,
+        mb: 2,
+        width: '100%',
+        overflow: 'hidden' // Prevent horizontal scroll
+      }}
       component="article"
       role="article"
       aria-label={`${game.away_team} vs ${game.home_team} Game Card`}
     >
       <Grid container spacing={isMobile ? 1 : 2}>
-        {/* Team Information */}
-        <Grid item xs={12} sm={4}>
+        {/* Team Info Column */}
+        <Grid item xs={4}>
           <Box>
             <TeamDisplay team={game.away_team} isHome={false} />
             <TeamDisplay team={game.home_team} isHome={true} />
             <Typography 
-              variant="body2" 
-              color="text.secondary" 
+              variant="caption" 
+              color="text.secondary"
               sx={{ 
-                mt: isMobile ? 0.5 : 1,
-                fontSize: isMobile ? '0.7rem' : undefined
+                display: 'block',
+                mt: 1,
+                fontSize: isMobile ? '0.6rem' : '0.75rem'
               }}
               role="time"
               aria-label="Game start time"
@@ -235,9 +283,9 @@ const GameCard = ({ game, selectedBookmakers }) => {
           </Box>
         </Grid>
 
-        {/* Odds Display */}
-        <Grid item xs={12} sm={8}>
-          <Grid container spacing={isMobile ? 1 : 2}>
+        {/* Odds Columns */}
+        <Grid item xs={8}>
+          <Grid container spacing={isMobile ? 0.5 : 2}>
             <Grid item xs={4}>
               <MoneylineSection 
                 title="Moneyline"
@@ -245,7 +293,6 @@ const GameCard = ({ game, selectedBookmakers }) => {
                 homeOdds={odds.homeMoneyline}
               />
             </Grid>
-
             <Grid item xs={4}>
               <SpreadSection 
                 title="Spread"
@@ -253,7 +300,6 @@ const GameCard = ({ game, selectedBookmakers }) => {
                 homeOdds={odds.homeSpread}
               />
             </Grid>
-
             <Grid item xs={4}>
               <TotalsSection 
                 title="Over/Under"
@@ -264,6 +310,8 @@ const GameCard = ({ game, selectedBookmakers }) => {
           </Grid>
         </Grid>
       </Grid>
+
+      {/* Detailed View */}
       <DetailedOddsView game={filteredGame} />
     </Paper>
   );
