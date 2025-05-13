@@ -72,15 +72,23 @@ const GamesList = () => {
     try {
       setLoading(true);
       setError(null);
+      let hasFirebaseWritePermission = true;
 
       // First, try Firebase since it might have the most up-to-date data
       console.log(' Checking Firebase for data...');
-      const gamesRef = ref(database, 'games');
-      const snapshot = await get(gamesRef);
-      const timestampRef = ref(database, 'lastUpdated');
-      const timeSnapshot = await get(timestampRef);
+      let snapshot, timeSnapshot;
+      
+      try {
+        const gamesRef = ref(database, 'games');
+        snapshot = await get(gamesRef);
+        const timestampRef = ref(database, 'lastUpdated');
+        timeSnapshot = await get(timestampRef);
+      } catch (firebaseReadError) {
+        console.error(' Error reading from Firebase:', firebaseReadError);
+        // Continue with API call if Firebase read fails
+      }
 
-      if (snapshot.exists() && timeSnapshot.exists()) {
+      if (snapshot && snapshot.exists() && timeSnapshot && timeSnapshot.exists()) {
         const firebaseTimestamp = timeSnapshot.val();
         console.log(' Found data in Firebase, checking if update needed...');
         
@@ -99,7 +107,7 @@ const GamesList = () => {
         }
         console.log(' Firebase data needs update');
       } else {
-        console.log(' No data found in Firebase');
+        console.log(' No data found in Firebase or could not access Firebase');
       }
 
       // If we get here, either:
@@ -123,6 +131,26 @@ const GamesList = () => {
 
       const responses = await Promise.all(sportPromises);
       
+      // Extract API quota information from the first valid response headers
+      // and store for admin use only (not displayed to users)
+      for (const response of responses) {
+        if (response && response.headers && response.headers['x-requests-remaining']) {
+          const remaining = parseInt(response.headers['x-requests-remaining']);
+          const used = parseInt(response.headers['x-requests-used']);
+          
+          // Store quota info in localStorage for admin access
+          localStorage.setItem('apiQuotaInfo', JSON.stringify({
+            remaining: remaining,
+            used: used,
+            total: remaining + used,
+            lastChecked: new Date().toISOString()
+          }));
+          
+          console.log(' API Quota - Remaining:', remaining, 'Used:', used, 'Total:', remaining + used);
+          break;
+        }
+      }
+      
       // Combine all games
       const allGames = responses.reduce((acc, response) => {
         if (response.data) {
@@ -138,20 +166,33 @@ const GamesList = () => {
 
       console.log(` Received ${sortedGames.length} games from API`);
 
-      // Store in Firebase and localStorage
+      // Try to store in Firebase, but don't stop if it fails
       const now = new Date();
       try {
-        console.log(' Storing data in Firebase...');
-        await Promise.all([
-          set(ref(database, 'games'), sortedGames)
-            .then(() => console.log(' Games stored in Firebase'))
-            .catch(error => console.error(' Firebase games storage error:', error)),
-          set(ref(database, 'lastUpdated'), now.getTime())
-            .then(() => console.log(' Timestamp stored in Firebase'))
-            .catch(error => console.error(' Firebase timestamp storage error:', error))
-        ]);
+        console.log(' Attempting to store data in Firebase...');
+        // Test write permission with a small write first
+        try {
+          await set(ref(database, 'writeTest'), { test: true });
+          hasFirebaseWritePermission = true;
+          console.log(' Firebase write permission confirmed');
+        } catch (permissionError) {
+          hasFirebaseWritePermission = false;
+          console.warn(' Firebase write permission denied - skipping Firebase storage');
+        }
+        
+        if (hasFirebaseWritePermission) {
+          await Promise.all([
+            set(ref(database, 'games'), sortedGames)
+              .then(() => console.log(' Games stored in Firebase'))
+              .catch(error => console.error(' Firebase games storage error:', error)),
+            set(ref(database, 'lastUpdated'), now.getTime())
+              .then(() => console.log(' Timestamp stored in Firebase'))
+              .catch(error => console.error(' Firebase timestamp storage error:', error))
+          ]);
+        }
       } catch (firebaseError) {
         console.error(' Firebase storage error:', firebaseError);
+        // Continue with the app even if Firebase storage fails
       }
 
       // Update localStorage
@@ -161,13 +202,49 @@ const GamesList = () => {
         console.log(' Data cached in localStorage');
       } catch (storageError) {
         console.error(' localStorage error:', storageError);
+        // Continue even if localStorage fails
       }
 
-      processAndSetGames(sortedGames);
-      setLastUpdated(now);
+      // Always process and display the data regardless of Firebase/localStorage success
+      if (sortedGames && sortedGames.length > 0) {
+        processAndSetGames(sortedGames);
+        setLastUpdated(now);
+        console.log(' Successfully processed and displayed games data');
+      } else {
+        // If no games data from API, try to use cached data from localStorage as a fallback
+        try {
+          const cachedData = localStorage.getItem(CACHE_KEY);
+          if (cachedData) {
+            const parsedData = JSON.parse(cachedData);
+            console.log(' Using cached data from localStorage as fallback');
+            processAndSetGames(parsedData);
+            const cachedTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
+            setLastUpdated(cachedTimestamp ? new Date(parseInt(cachedTimestamp)) : new Date());
+          } else {
+            throw new Error('No cached data available');
+          }
+        } catch (cacheError) {
+          console.error(' No usable data available:', cacheError);
+          setError('Unable to fetch or retrieve games data. Please try again later.');
+        }
+      }
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch games data');
       console.error('Error fetching games:', err.response?.data || err);
+      
+      // Try to use cached data as a last resort
+      try {
+        const cachedData = localStorage.getItem(CACHE_KEY);
+        if (cachedData) {
+          const parsedData = JSON.parse(cachedData);
+          console.log(' Using cached data from localStorage after error');
+          processAndSetGames(parsedData);
+          const cachedTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
+          setLastUpdated(cachedTimestamp ? new Date(parseInt(cachedTimestamp)) : new Date());
+        }
+      } catch (fallbackError) {
+        console.error(' Failed to use cached data:', fallbackError);
+      }
     } finally {
       setLoading(false);
     }

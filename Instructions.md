@@ -1,4 +1,4 @@
-# Beat the Books v2
+# Beat the Books v3
 
 ## Project Overview
 A sports betting odds comparison app that helps users find the best available odds across multiple sportsbooks. The app should focus on clarity, ease of use, and quick access to the most favorable betting opportunities.
@@ -6,6 +6,7 @@ A sports betting odds comparison app that helps users find the best available od
 ## Core Features & Requirements
 
 ### 1. Best Odds Display
+- Display in a dark modern theme using Material UI
 - Each game tile MUST show:
   - Best Moneyline (straight win/loss bet)
   - Best Point Spread (margin of victory bet)
@@ -116,6 +117,7 @@ interface Outcome {
 
 ### API Integration
 ```javascript
+api docs: 'https://the-odds-api.com/liveapi/guides/v4/'
 Base URL: 'https://api.the-odds-api.com/v4/sports'
 Params: {
   apiKey: ODDS_API_KEY,
