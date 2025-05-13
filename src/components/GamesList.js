@@ -19,11 +19,11 @@ const SPORT_LABELS = {
 const CACHE_KEY = 'gamesCache';
 const CACHE_TIMESTAMP_KEY = 'gamesCacheTimestamp';
 
-const GamesList = () => {
+const GamesList = ({ initialSport = 'basketball_nba' }) => {
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedSport, setSelectedSport] = useState('basketball_nba');
+  const [selectedSport, setSelectedSport] = useState(initialSport);
   const [availableBookmakers, setAvailableBookmakers] = useState([]);
   const [selectedBookmakers, setSelectedBookmakers] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
