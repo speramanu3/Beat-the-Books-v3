@@ -4,6 +4,7 @@ import { createTheme } from '@mui/material/styles';
 import GamesList from './components/GamesList';
 import HomePage from './components/HomePage';
 import Header from './components/Header';
+import { AuthProvider } from './contexts/AuthContext';
 
 const theme = createTheme({
   palette: {
@@ -67,19 +68,21 @@ function App() {
   };
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Header currentPage={currentPage} navigateTo={navigateTo} />
-      <Box sx={{ minHeight: 'calc(100vh - 64px)' }}>
-        {currentPage === 'home' ? (
-          <HomePage navigateTo={navigateTo} />
-        ) : (
-          <Container maxWidth="lg" sx={{ py: 4 }}>
-            <GamesList initialSport={selectedSport} />
-          </Container>
-        )}
-      </Box>
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Header currentPage={currentPage} navigateTo={navigateTo} />
+        <Box sx={{ minHeight: 'calc(100vh - 64px)' }}>
+          {currentPage === 'home' ? (
+            <HomePage navigateTo={navigateTo} />
+          ) : (
+            <Container maxWidth="lg" sx={{ py: 4 }}>
+              <GamesList initialSport={selectedSport} />
+            </Container>
+          )}
+        </Box>
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
 

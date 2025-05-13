@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, onValue } from 'firebase/database';
+import { getDatabase, ref, onValue, connectDatabaseEmulator } from 'firebase/database';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, GoogleAuthProvider, signInWithPopup, sendEmailVerification, sendPasswordResetEmail, onAuthStateChanged, updateProfile } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: "AIzaSyCk8G-X2__KsABX8HM_hmSSpFuDg29dbN8",
@@ -18,15 +19,42 @@ const app = initializeApp(firebaseConfig);
 // Initialize Realtime Database and get a reference to the service
 const database = getDatabase(app);
 
-// Add error logging for database initialization
-const connectedRef = ref(database, '.info/connected');
-onValue(connectedRef, (snap) => {
-  if (snap.val() === true) {
-    console.log('✅ Connected to Firebase Realtime Database');
-  } else {
-    console.log('❌ Not connected to Firebase Realtime Database');
-  }
+// Initialize Firebase Authentication
+const auth = getAuth(app);
+const googleProvider = new GoogleAuthProvider();
+
+// Configure Google Auth Provider
+googleProvider.setCustomParameters({
+  prompt: 'select_account'
 });
 
-export { database };
+// Add error logging for database initialization
+try {
+  const connectedRef = ref(database, '.info/connected');
+  onValue(connectedRef, (snap) => {
+    if (snap.val() === true) {
+      console.log('✅ Connected to Firebase Realtime Database');
+    } else {
+      console.log('❌ Not connected to Firebase Realtime Database');
+    }
+  }, (error) => {
+    console.error('Firebase connection error:', error);
+  });
+} catch (error) {
+  console.error('Error initializing Firebase connection:', error);
+}
+
+export { 
+  database, 
+  auth, 
+  googleProvider,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signInWithPopup,
+  signOut,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  onAuthStateChanged,
+  updateProfile
+};
 export default app;

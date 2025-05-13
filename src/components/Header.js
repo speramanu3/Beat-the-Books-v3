@@ -9,34 +9,26 @@ import {
   Menu,
   MenuItem,
   useMediaQuery,
-  useTheme,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Tabs,
-  Tab
+  useTheme
 } from '@mui/material';
 import MenuIcon from '@mui/icons-material/Menu';
 import PersonIcon from '@mui/icons-material/Person';
+import { useAuth } from '../contexts/AuthContext';
+import AuthModal from './auth/AuthModal';
+import UserProfile from './auth/UserProfile';
 
 const Header = ({ currentPage, navigateTo }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const { currentUser } = useAuth();
   
   // Mobile menu state
   const [mobileMenuAnchorEl, setMobileMenuAnchorEl] = useState(null);
   const isMobileMenuOpen = Boolean(mobileMenuAnchorEl);
   
-  // Auth dialog state
-  const [authDialogOpen, setAuthDialogOpen] = useState(false);
+  // Auth modal state
+  const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authTab, setAuthTab] = useState(0); // 0 for login, 1 for register
-  
-  // Form state
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   
   const handleMobileMenuOpen = (event) => {
     setMobileMenuAnchorEl(event.currentTarget);
@@ -46,35 +38,13 @@ const Header = ({ currentPage, navigateTo }) => {
     setMobileMenuAnchorEl(null);
   };
   
-  const handleAuthDialogOpen = (tabIndex) => {
+  const handleAuthModalOpen = (tabIndex) => {
     setAuthTab(tabIndex);
-    setAuthDialogOpen(true);
+    setAuthModalOpen(true);
   };
   
-  const handleAuthDialogClose = () => {
-    setAuthDialogOpen(false);
-    // Reset form fields
-    setEmail('');
-    setPassword('');
-    setConfirmPassword('');
-  };
-  
-  const handleAuthTabChange = (event, newValue) => {
-    setAuthTab(newValue);
-  };
-  
-  const handleLogin = (e) => {
-    e.preventDefault();
-    // Placeholder for login logic
-    console.log('Login with:', email, password);
-    handleAuthDialogClose();
-  };
-  
-  const handleRegister = (e) => {
-    e.preventDefault();
-    // Placeholder for register logic
-    console.log('Register with:', email, password);
-    handleAuthDialogClose();
+  const handleAuthModalClose = () => {
+    setAuthModalOpen(false);
   };
   
   const handleNavigation = (page) => {
@@ -99,12 +69,12 @@ const Header = ({ currentPage, navigateTo }) => {
             sx={{
               cursor: 'pointer',
               color: '#39FF14',
-              textDecoration: 'none',
-              flexGrow: 1,
               fontWeight: 'bold',
+              flexGrow: { xs: 1, md: 0 },
+              mr: { md: 4 },
               fontFamily: "'Orbitron', sans-serif",
-              textShadow: '0 0 5px rgba(57, 255, 20, 0.5)',
-              letterSpacing: '1px'
+              letterSpacing: 1,
+              textShadow: '0 0 5px rgba(57, 255, 20, 0.5)'
             }}
           >
             BEAT THE BOOKS
@@ -112,226 +82,146 @@ const Header = ({ currentPage, navigateTo }) => {
           
           {/* Desktop Navigation */}
           {!isMobile && (
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Box sx={{ flexGrow: 1, display: 'flex' }}>
               {navLinks.map((link) => (
                 <Button
-                  key={link.name}
+                  key={link.page}
                   onClick={() => navigateTo(link.page)}
                   sx={{
+                    color: currentPage === link.page ? '#39FF14' : '#fff',
+                    display: 'block',
                     mx: 1,
-                    color: currentPage === link.page ? '#39FF14' : 'white',
                     '&:hover': {
                       color: '#39FF14',
                     },
+                    borderBottom: currentPage === link.page ? '2px solid #39FF14' : 'none',
+                    borderRadius: 0,
+                    paddingBottom: '6px',
                   }}
                 >
                   {link.name}
                 </Button>
               ))}
-              
-              <Box sx={{ ml: 2, display: 'flex' }}>
-                <Button
-                  variant="outlined"
-                  onClick={() => handleAuthDialogOpen(0)}
-                  sx={{
-                    borderColor: '#39FF14',
-                    color: 'white',
-                    mr: 1,
-                    '&:hover': {
-                      borderColor: '#00E676',
-                      backgroundColor: 'rgba(57, 255, 20, 0.1)',
-                    },
-                  }}
-                >
-                  Login
-                </Button>
-                <Button
-                  variant="contained"
-                  onClick={() => handleAuthDialogOpen(1)}
-                  sx={{
-                    backgroundColor: '#39FF14',
-                    color: 'black',
-                    '&:hover': {
-                      backgroundColor: '#00E676',
-                    },
-                  }}
-                >
-                  Register
-                </Button>
-              </Box>
             </Box>
           )}
           
-          {/* Mobile Navigation */}
-          {isMobile && (
-            <Box sx={{ display: 'flex' }}>
+          {/* Auth Buttons or User Profile */}
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            {!isMobile && (
+              currentUser ? (
+                <UserProfile />
+              ) : (
+                <>
+                  <Button 
+                    variant="outlined" 
+                    onClick={() => handleAuthModalOpen(0)}
+                    sx={{ 
+                      color: '#fff', 
+                      borderColor: 'rgba(255, 255, 255, 0.3)',
+                      mr: 2,
+                      '&:hover': {
+                        borderColor: '#39FF14',
+                        backgroundColor: 'rgba(57, 255, 20, 0.1)'
+                      }
+                    }}
+                  >
+                    Login
+                  </Button>
+                  <Button 
+                    variant="contained" 
+                    onClick={() => handleAuthModalOpen(1)}
+                    sx={{ 
+                      backgroundColor: '#39FF14',
+                      color: '#000',
+                      '&:hover': {
+                        backgroundColor: '#32CD32'
+                      }
+                    }}
+                  >
+                    Sign Up
+                  </Button>
+                </>
+              )
+            )}
+            
+            {/* Mobile Menu Button */}
+            {isMobile && (
               <IconButton
-                color="inherit"
-                aria-label="account"
-                onClick={() => handleAuthDialogOpen(0)}
-                sx={{ mr: 1 }}
-              >
-                <PersonIcon />
-              </IconButton>
-              
-              <IconButton
-                color="inherit"
+                size="large"
                 aria-label="menu"
+                aria-controls="menu-appbar"
+                aria-haspopup="true"
                 onClick={handleMobileMenuOpen}
+                color="inherit"
               >
                 <MenuIcon />
               </IconButton>
-              
-              <Menu
-                anchorEl={mobileMenuAnchorEl}
-                open={isMobileMenuOpen}
-                onClose={handleMobileMenuClose}
-              >
-                {navLinks.map((link) => (
-                  <MenuItem 
-                    key={link.name} 
-                    onClick={() => handleNavigation(link.page)}
-                    selected={currentPage === link.page}
-                  >
-                    {link.name}
-                  </MenuItem>
-                ))}
-              </Menu>
-            </Box>
-          )}
+            )}
+          </Box>
         </Toolbar>
       </AppBar>
       
-      {/* Auth Dialog */}
-      <Dialog 
-        open={authDialogOpen} 
-        onClose={handleAuthDialogClose}
-        maxWidth="xs"
-        fullWidth
+      {/* Mobile Menu */}
+      <Menu
+        id="menu-appbar"
+        anchorEl={mobileMenuAnchorEl}
+        anchorOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        keepMounted
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'right',
+        }}
+        open={isMobileMenuOpen}
+        onClose={handleMobileMenuClose}
+        sx={{
+          display: { xs: 'block', md: 'none' },
+          '& .MuiPaper-root': {
+            backgroundColor: '#1e1e1e',
+            borderRadius: 2,
+            border: '1px solid rgba(57, 255, 20, 0.1)',
+          },
+        }}
       >
-        <DialogTitle>
-          <Tabs 
-            value={authTab} 
-            onChange={handleAuthTabChange}
-            variant="fullWidth"
+        {navLinks.map((link) => (
+          <MenuItem 
+            key={link.page} 
+            onClick={() => handleNavigation(link.page)}
+            selected={currentPage === link.page}
             sx={{
-              '& .MuiTab-root': {
-                fontWeight: 'bold',
+              '&.Mui-selected': {
+                backgroundColor: 'rgba(57, 255, 20, 0.1)',
               },
-              '& .Mui-selected': {
-                color: '#39FF14',
-              },
-              '& .MuiTabs-indicator': {
-                backgroundColor: '#39FF14',
+              '&:hover': {
+                backgroundColor: 'rgba(57, 255, 20, 0.05)',
               },
             }}
           >
-            <Tab label="Login" />
-            <Tab label="Register" />
-          </Tabs>
-        </DialogTitle>
+            <Typography textAlign="center">{link.name}</Typography>
+          </MenuItem>
+        ))}
         
-        <DialogContent>
-          {authTab === 0 ? (
-            // Login Form
-            <Box component="form" onSubmit={handleLogin} sx={{ mt: 1 }}>
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                label="Email Address"
-                name="email"
-                autoComplete="email"
-                autoFocus
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                name="password"
-                label="Password"
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                sx={{
-                  mt: 3,
-                  mb: 2,
-                  backgroundColor: '#39FF14',
-                  color: 'black',
-                  '&:hover': {
-                    backgroundColor: '#00E676',
-                  },
-                }}
-              >
-                Sign In
-              </Button>
-            </Box>
-          ) : (
-            // Register Form
-            <Box component="form" onSubmit={handleRegister} sx={{ mt: 1 }}>
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                label="Email Address"
-                name="email"
-                autoComplete="email"
-                autoFocus
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-              />
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                name="password"
-                label="Password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                name="confirmPassword"
-                label="Confirm Password"
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-              />
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                sx={{
-                  mt: 3,
-                  mb: 2,
-                  backgroundColor: '#39FF14',
-                  color: 'black',
-                  '&:hover': {
-                    backgroundColor: '#00E676',
-                  },
-                }}
-              >
-                Create Account
-              </Button>
-            </Box>
-          )}
-        </DialogContent>
-        
-        <DialogActions>
-          <Button onClick={handleAuthDialogClose}>Cancel</Button>
-        </DialogActions>
-      </Dialog>
+        {/* Show login/signup options only if not logged in */}
+        {!currentUser && (
+          <>
+            <MenuItem onClick={() => handleAuthModalOpen(0)}>
+              <Typography textAlign="center">Login</Typography>
+            </MenuItem>
+            <MenuItem onClick={() => handleAuthModalOpen(1)}>
+              <Typography textAlign="center">Sign Up</Typography>
+            </MenuItem>
+          </>
+        )}
+      </Menu>
+      
+      {/* Auth Modal */}
+      <AuthModal 
+        open={authModalOpen} 
+        onClose={handleAuthModalClose} 
+        initialTab={authTab} 
+      />
     </>
   );
 };

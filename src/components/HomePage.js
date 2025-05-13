@@ -18,11 +18,7 @@ import {
   useTheme,
   Fade,
   Grow,
-  Zoom,
-  Modal,
-  TextField,
-  Tabs,
-  Tab
+  Zoom
 } from '@mui/material';
 // Sports icons
 import SportsTennisIcon from '@mui/icons-material/SportsTennis';
@@ -34,6 +30,9 @@ import SportsGolfIcon from '@mui/icons-material/SportsGolf';
 import SportsBasketballIcon from '@mui/icons-material/SportsBasketball';
 // Import BookmakerCarousel
 import BookmakerCarousel from './BookmakerCarousel';
+// Import Auth components
+import AuthModal from './auth/AuthModal';
+import { useAuth } from '../contexts/AuthContext';
 // Feature icons
 import SpeedIcon from '@mui/icons-material/Speed';
 import CompareIcon from '@mui/icons-material/Compare';
@@ -55,9 +54,10 @@ const HomePage = ({ navigateTo }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const isTablet = useMediaQuery(theme.breakpoints.down('lg'));
-  const [showSignUpModal, setShowSignUpModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [authTab, setAuthTab] = useState(0); // 0 for login, 1 for register
   const [isLoaded, setIsLoaded] = useState(false);
+  const { currentUser } = useAuth();
 
   // Animation variants for staggered animations
   const containerVariants = {
@@ -92,13 +92,13 @@ const HomePage = ({ navigateTo }) => {
     navigateTo('odds', sportKey);
   };
 
-  const handleOpenSignUp = (tab = 0) => {
+  const handleOpenAuthModal = (tab = 0) => {
     setAuthTab(tab);
-    setShowSignUpModal(true);
+    setShowAuthModal(true);
   };
 
-  const handleCloseSignUp = () => {
-    setShowSignUpModal(false);
+  const handleCloseAuthModal = () => {
+    setShowAuthModal(false);
   };
 
   const featuredSports = [
@@ -281,7 +281,7 @@ const HomePage = ({ navigateTo }) => {
                     <Button 
                       variant="outlined" 
                       size="large"
-                      onClick={() => handleOpenSignUp(1)}
+                      onClick={() => handleOpenAuthModal(1)}
                       sx={{ 
                         borderColor: '#39FF14',
                         color: '#39FF14',
@@ -744,28 +744,53 @@ const HomePage = ({ navigateTo }) => {
                 VIEW LIVE ODDS NOW
               </Button>
               
-              <Button 
-                variant="outlined" 
-                size="large"
-                onClick={() => handleOpenSignUp(1)}
-                sx={{ 
-                  borderColor: '#39FF14',
-                  color: '#39FF14',
-                  fontWeight: 'bold',
-                  px: 4,
-                  py: 1.5,
-                  borderRadius: 2,
-                  borderWidth: 2,
-                  transition: 'all 0.3s ease',
-                  '&:hover': {
-                    borderColor: '#00E676',
-                    backgroundColor: 'rgba(57, 255, 20, 0.1)',
-                    transform: 'translateY(-3px)'
-                  }
-                }}
-              >
-                CREATE ACCOUNT
-              </Button>
+              {!currentUser ? (
+                <Button 
+                  variant="outlined" 
+                  size="large"
+                  onClick={() => handleOpenAuthModal(1)}
+                  sx={{ 
+                    borderColor: '#39FF14',
+                    color: '#39FF14',
+                    fontWeight: 'bold',
+                    px: 4,
+                    py: 1.5,
+                    borderRadius: 2,
+                    borderWidth: 2,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      borderColor: '#00E676',
+                      backgroundColor: 'rgba(57, 255, 20, 0.1)',
+                      transform: 'translateY(-3px)'
+                    }
+                  }}
+                >
+                  CREATE ACCOUNT
+                </Button>
+              ) : (
+                <Button 
+                  variant="outlined" 
+                  size="large"
+                  onClick={() => navigateTo('profile')}
+                  sx={{ 
+                    borderColor: '#39FF14',
+                    color: '#39FF14',
+                    fontWeight: 'bold',
+                    px: 4,
+                    py: 1.5,
+                    borderRadius: 2,
+                    borderWidth: 2,
+                    transition: 'all 0.3s ease',
+                    '&:hover': {
+                      borderColor: '#00E676',
+                      backgroundColor: 'rgba(57, 255, 20, 0.1)',
+                      transform: 'translateY(-3px)'
+                    }
+                  }}
+                >
+                  MY PROFILE
+                </Button>
+              )}
             </Box>
           </Box>
           
@@ -784,137 +809,12 @@ const HomePage = ({ navigateTo }) => {
         </Box>
       </motion.div>
       
-      {/* Authentication Modal - Simplified to fix syntax issues */}
-      {showSignUpModal && (
-        <Box
-          sx={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            zIndex: 1300,
-          }}
-        >
-          <Box 
-            sx={{
-              width: { xs: '90%', sm: 400 },
-              bgcolor: '#1e1e1e',
-              border: '1px solid rgba(57, 255, 20, 0.2)',
-              boxShadow: 24,
-              p: 4,
-              borderRadius: 2,
-              position: 'relative',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Typography variant="h6" component="h2">
-                {authTab === 0 ? 'Log In' : 'Create Account'}
-              </Typography>
-              <IconButton onClick={handleCloseSignUp} sx={{ color: 'white' }}>
-                <CloseIcon />
-              </IconButton>
-            </Box>
-            
-            <Tabs value={authTab} onChange={(e, newValue) => setAuthTab(newValue)} sx={{ mb: 3 }}>
-              <Tab label="Login" />
-              <Tab label="Register" />
-            </Tabs>
-            
-            {authTab === 0 ? (
-              <Box component="form" noValidate>
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  id="email"
-                  label="Email Address"
-                  name="email"
-                  autoComplete="email"
-                  autoFocus
-                  sx={{ mb: 2 }}
-                />
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  name="password"
-                  label="Password"
-                  type="password"
-                  id="password"
-                  autoComplete="current-password"
-                  sx={{ mb: 3 }}
-                />
-                <Button
-                  fullWidth
-                  variant="contained"
-                  sx={{
-                    background: 'linear-gradient(45deg, #39FF14 30%, #00E676 90%)',
-                    color: '#000',
-                    fontWeight: 'bold',
-                    py: 1.5,
-                    mb: 2
-                  }}
-                >
-                  Sign In
-                </Button>
-              </Box>
-            ) : (
-              <Box component="form" noValidate>
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  id="register-email"
-                  label="Email Address"
-                  name="email"
-                  autoComplete="email"
-                  autoFocus
-                  sx={{ mb: 2 }}
-                />
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  name="password"
-                  label="Password"
-                  type="password"
-                  id="register-password"
-                  sx={{ mb: 2 }}
-                />
-                <TextField
-                  margin="normal"
-                  required
-                  fullWidth
-                  name="confirm-password"
-                  label="Confirm Password"
-                  type="password"
-                  id="confirm-password"
-                  sx={{ mb: 3 }}
-                />
-                <Button
-                  fullWidth
-                  variant="contained"
-                  sx={{
-                    background: 'linear-gradient(45deg, #39FF14 30%, #00E676 90%)',
-                    color: '#000',
-                    fontWeight: 'bold',
-                    py: 1.5,
-                    mb: 2
-                  }}
-                >
-                  Create Account
-                </Button>
-              </Box>
-            )}
-          </Box>
-        </Box>
-      )}
+      {/* Authentication Modal */}
+      <AuthModal 
+        open={showAuthModal} 
+        onClose={handleCloseAuthModal} 
+        initialTab={authTab} 
+      />
     </Container>
     </>
   );
