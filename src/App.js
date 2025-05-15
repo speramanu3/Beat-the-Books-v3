@@ -4,7 +4,10 @@ import { createTheme } from '@mui/material/styles';
 import GamesList from './components/GamesList';
 import HomePage from './components/HomePage';
 import Header from './components/Header';
+import ProfilePage from './components/auth/ProfilePage';
+import FavoriteBets from './components/FavoriteBets';
 import { AuthProvider } from './contexts/AuthContext';
+import { FavoritesProvider } from './contexts/FavoritesContext';
 
 const theme = createTheme({
   palette: {
@@ -69,19 +72,25 @@ function App() {
 
   return (
     <AuthProvider>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Header currentPage={currentPage} navigateTo={navigateTo} />
-        <Box sx={{ minHeight: 'calc(100vh - 64px)' }}>
-          {currentPage === 'home' ? (
-            <HomePage navigateTo={navigateTo} />
-          ) : (
-            <Container maxWidth="lg" sx={{ py: 4 }}>
-              <GamesList initialSport={selectedSport} />
-            </Container>
-          )}
-        </Box>
-      </ThemeProvider>
+      <FavoritesProvider>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <Header currentPage={currentPage} navigateTo={navigateTo} />
+          <Box sx={{ minHeight: 'calc(100vh - 64px)' }}>
+            {currentPage === 'home' ? (
+              <HomePage navigateTo={navigateTo} />
+            ) : currentPage === 'profile' ? (
+              <ProfilePage />
+            ) : currentPage === 'favorites' ? (
+              <FavoriteBets />
+            ) : (
+              <Container maxWidth="lg" sx={{ py: 4 }}>
+                <GamesList initialSport={selectedSport} />
+              </Container>
+            )}
+          </Box>
+        </ThemeProvider>
+      </FavoritesProvider>
     </AuthProvider>
   );
 }

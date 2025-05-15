@@ -16,7 +16,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import SettingsIcon from '@mui/icons-material/Settings';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 
-const UserProfile = () => {
+const UserProfile = ({ navigateTo }) => {
   const { currentUser, logout } = useAuth();
   const [anchorEl, setAnchorEl] = useState(null);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -150,14 +150,20 @@ const UserProfile = () => {
         
         <Divider />
         
-        <MenuItem onClick={handleClose}>
+        <MenuItem onClick={() => {
+          handleClose();
+          if (navigateTo) navigateTo('profile');
+        }}>
           <ListItemIcon>
             <PersonIcon fontSize="small" sx={{ color: '#39FF14' }} />
           </ListItemIcon>
           My Profile
         </MenuItem>
         
-        <MenuItem onClick={handleClose}>
+        <MenuItem onClick={() => {
+          handleClose();
+          if (navigateTo) navigateTo('favorites');
+        }}>
           <ListItemIcon>
             <FavoriteIcon fontSize="small" sx={{ color: '#39FF14' }} />
           </ListItemIcon>

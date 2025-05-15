@@ -109,7 +109,7 @@ const Header = ({ currentPage, navigateTo }) => {
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             {!isMobile && (
               currentUser ? (
-                <UserProfile />
+                <UserProfile navigateTo={navigateTo} />
               ) : (
                 <>
                   <Button 

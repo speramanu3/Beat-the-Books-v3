@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Box, Grid, Typography, Tabs, Tab, Paper } from '@mui/material';
+import { Box, Grid, Typography, Tabs, Tab, Paper, Button, CircularProgress, Tooltip } from '@mui/material';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import GameCard from './GameCard';
 import SportsbookFilter from './SportsbookFilter';
 import axios from 'axios';
@@ -7,12 +8,13 @@ import config from '../config';
 import { database } from '../firebaseConfig';
 import { ref, set, get } from 'firebase/database';
 
-const SUPPORTED_SPORTS = ['americanfootball_nfl', 'basketball_nba', 'icehockey_nhl'];
+const SUPPORTED_SPORTS = ['americanfootball_nfl', 'basketball_nba', 'icehockey_nhl', 'baseball_mlb'];
 
 const SPORT_LABELS = {
   'americanfootball_nfl': 'NFL',
   'basketball_nba': 'NBA',
-  'icehockey_nhl': 'NHL'
+  'icehockey_nhl': 'NHL',
+  'baseball_mlb': 'MLB'
 };
 
 // Cache keys
@@ -27,6 +29,7 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
   const [availableBookmakers, setAvailableBookmakers] = useState([]);
   const [selectedBookmakers, setSelectedBookmakers] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const shouldUpdate = (timestamp) => {
     if (!timestamp) return true;
@@ -68,7 +71,7 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
     setSelectedBookmakers(Array.from(allBookmakers));
   };
 
-  const fetchGames = async () => {
+  const fetchGames = async (forceUpdate = false) => {
     try {
       setLoading(true);
       setError(null);
@@ -88,7 +91,7 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
         // Continue with API call if Firebase read fails
       }
 
-      if (snapshot && snapshot.exists() && timeSnapshot && timeSnapshot.exists()) {
+      if (!forceUpdate && snapshot && snapshot.exists() && timeSnapshot && timeSnapshot.exists()) {
         const firebaseTimestamp = timeSnapshot.val();
         console.log(' Found data in Firebase, checking if update needed...');
         
@@ -105,6 +108,8 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
           setLoading(false);
           return;
         }
+      } else if (forceUpdate) {
+        console.log(' Force update requested, bypassing cache...');
         console.log(' Firebase data needs update');
       } else {
         console.log(' No data found in Firebase or could not access Firebase');
@@ -254,6 +259,19 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
   useEffect(() => {
     fetchGames();
   }, []);
+  
+  // Function to force refresh data from API
+  const forceRefresh = async () => {
+    setRefreshing(true);
+    try {
+      // Call fetchGames with forceUpdate=true to bypass cache checks
+      await fetchGames(true);
+    } catch (error) {
+      console.error('Force refresh error:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const handleSportChange = (event, newValue) => {
     setSelectedSport(newValue);
@@ -340,7 +358,7 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
         </Tabs>
       </Paper>
 
-      <Box sx={{ mb: 2, textAlign: 'center' }}>
+      <Box sx={{ mb: 2, textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <Typography variant="caption" color="text.secondary" display="block" gutterBottom>
           Last Updated: {lastUpdated ? new Date(lastUpdated).toLocaleString('en-US', {
             timeZone: 'America/New_York',

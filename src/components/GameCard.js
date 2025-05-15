@@ -1,13 +1,19 @@
 import React, { useMemo } from 'react';
-import { Paper, Grid, Typography, Box, Avatar, useTheme, useMediaQuery } from '@mui/material';
+import { Paper, Grid, Typography, Box, Avatar, useTheme, useMediaQuery, IconButton, Tooltip } from '@mui/material';
 import { format } from 'date-fns';
 import { getTeamLogo } from '../utils/teamLogos';
 import DetailedOddsView from './DetailedOddsView';
 import { getProcessedOdds, formatOdds } from '../utils/oddsProcessing';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import { useFavorites } from '../contexts/FavoritesContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const GameCard = ({ game, selectedBookmakers }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { currentUser } = useAuth();
+  const { isFavorite, toggleFavorite } = useFavorites();
 
   // Create a filtered game object with only selected bookmakers
   const filteredGame = useMemo(() => ({
@@ -255,12 +261,35 @@ const GameCard = ({ game, selectedBookmakers }) => {
         p: isMobile ? 1 : 2,
         mb: 2,
         width: '100%',
-        overflow: 'hidden' // Prevent horizontal scroll
+        overflow: 'hidden', // Prevent horizontal scroll
+        position: 'relative' // For positioning the favorite icon
       }}
       component="article"
       role="article"
       aria-label={`${game.away_team} vs ${game.home_team} Game Card`}
     >
+      {/* Favorite Icon */}
+      {currentUser && (
+        <Tooltip title={isFavorite(game.id) ? "Remove from favorites" : "Add to favorites"}>
+          <IconButton 
+            onClick={() => toggleFavorite(game)}
+            sx={{ 
+              position: 'absolute',
+              top: 8,
+              right: 8,
+              zIndex: 2,
+              color: isFavorite(game.id) ? '#ff1744' : 'rgba(255, 255, 255, 0.5)',
+              '&:hover': {
+                color: isFavorite(game.id) ? '#ff4081' : '#ff1744',
+              },
+              padding: '4px',
+            }}
+            aria-label={isFavorite(game.id) ? "Remove from favorites" : "Add to favorites"}
+          >
+            {isFavorite(game.id) ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+          </IconButton>
+        </Tooltip>
+      )}
       <Grid container spacing={isMobile ? 1 : 2}>
         {/* Team Info Column */}
         <Grid item xs={4}>

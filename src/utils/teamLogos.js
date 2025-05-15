@@ -104,11 +104,46 @@ const NHL_LOGOS = {
   'Winnipeg Jets': `${process.env.PUBLIC_URL}/NHL Logos/Winnipeg Jets.png`
 };
 
+// MLB team logos
+const MLB_LOGOS = {
+  'Arizona Diamondbacks': `${process.env.PUBLIC_URL}/MLB Logos/Arizona Diamondbacks.png`,
+  'Atlanta Braves': `${process.env.PUBLIC_URL}/MLB Logos/Atlanta Braves.png`,
+  'Baltimore Orioles': `${process.env.PUBLIC_URL}/MLB Logos/Baltimore Orioles.png`,
+  'Boston Red Sox': `${process.env.PUBLIC_URL}/MLB Logos/Boston Red Sox.png`,
+  'Chicago Cubs': `${process.env.PUBLIC_URL}/MLB Logos/Chicago Cubs.png`,
+  'Chicago White Sox': `${process.env.PUBLIC_URL}/MLB Logos/Chicago White Sox.png`,
+  'Cincinnati Reds': `${process.env.PUBLIC_URL}/MLB Logos/Cincinnati Reds.png`,
+  'Cleveland Guardians': `${process.env.PUBLIC_URL}/MLB Logos/Cleveland Guardians.png`,
+  'Colorado Rockies': `${process.env.PUBLIC_URL}/MLB Logos/Colorado Rockies.png`,
+  'Detroit Tigers': `${process.env.PUBLIC_URL}/MLB Logos/Detroit Tigers.png`,
+  'Houston Astros': `${process.env.PUBLIC_URL}/MLB Logos/Houston Astros.png`,
+  'Kansas City Royals': `${process.env.PUBLIC_URL}/MLB Logos/Kansas City Royals.png`,
+  'Los Angeles Angels': `${process.env.PUBLIC_URL}/MLB Logos/Los Angeles Angels.png`,
+  'Los Angeles Dodgers': `${process.env.PUBLIC_URL}/MLB Logos/Los Angeles Dodgers.png`,
+  'Miami Marlins': `${process.env.PUBLIC_URL}/MLB Logos/Miami Marlins.png`,
+  'Milwaukee Brewers': `${process.env.PUBLIC_URL}/MLB Logos/Milwaukee Brewers.png`,
+  'Minnesota Twins': `${process.env.PUBLIC_URL}/MLB Logos/Minnesota Twins.png`,
+  'New York Mets': `${process.env.PUBLIC_URL}/MLB Logos/New York Mets.png`,
+  'New York Yankees': `${process.env.PUBLIC_URL}/MLB Logos/New York Yankees.png`,
+  'Oakland Athletics': `${process.env.PUBLIC_URL}/MLB Logos/Oakland Athletics.png`,
+  'Philadelphia Phillies': `${process.env.PUBLIC_URL}/MLB Logos/Philadelphia Phillies.png`,
+  'Pittsburgh Pirates': `${process.env.PUBLIC_URL}/MLB Logos/Pittsburgh Pirates.png`,
+  'San Diego Padres': `${process.env.PUBLIC_URL}/MLB Logos/San Diego Padres.png`,
+  'San Francisco Giants': `${process.env.PUBLIC_URL}/MLB Logos/San Francisco Giants.png`,
+  'Seattle Mariners': `${process.env.PUBLIC_URL}/MLB Logos/Seattle Mariners.png`,
+  'St. Louis Cardinals': `${process.env.PUBLIC_URL}/MLB Logos/St. Louis Cardinals.png`,
+  'Tampa Bay Rays': `${process.env.PUBLIC_URL}/MLB Logos/Tampa Bay Rays.png`,
+  'Texas Rangers': `${process.env.PUBLIC_URL}/MLB Logos/Texas Rangers.png`,
+  'Toronto Blue Jays': `${process.env.PUBLIC_URL}/MLB Logos/Toronto Blue Jays.png`,
+  'Washington Nationals': `${process.env.PUBLIC_URL}/MLB Logos/Washington Nationals.png`
+};
+
 // Default logos for each sport
 const DEFAULT_LOGOS = {
   'basketball_nba': `${process.env.PUBLIC_URL}/NBA Logos/NBA.png`,
   'americanfootball_nfl': `${process.env.PUBLIC_URL}/NFL Logos/NFL.png`,
-  'icehockey_nhl': `${process.env.PUBLIC_URL}/NHL Logos/NHL.png`
+  'icehockey_nhl': `${process.env.PUBLIC_URL}/NHL Logos/NHL.png`,
+  'baseball_mlb': `${process.env.PUBLIC_URL}/MLB Logos/MLB.png`
 };
 
 export const getTeamLogo = (sportKey, teamName) => {
@@ -119,6 +154,8 @@ export const getTeamLogo = (sportKey, teamName) => {
       return NFL_LOGOS[teamName] || DEFAULT_LOGOS[sportKey];
     case 'icehockey_nhl':
       return NHL_LOGOS[teamName] || DEFAULT_LOGOS[sportKey];
+    case 'baseball_mlb':
+      return MLB_LOGOS[teamName] || DEFAULT_LOGOS[sportKey];
     default:
       return '';
   }
@@ -142,6 +179,10 @@ export const normalizeTeamName = (sportKey, teamName) => {
     'icehockey_nhl': {
       'Vegas Golden Knights': 'Vegas Golden Knights',
       'Las Vegas Golden Knights': 'Vegas Golden Knights'
+    },
+    'baseball_mlb': {
+      'LA Angels': 'Los Angeles Angels',
+      'LA Dodgers': 'Los Angeles Dodgers'
     }
   };
 
