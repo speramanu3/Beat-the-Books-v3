@@ -30,9 +30,26 @@ const SportsbookFilter = ({
   return (
     <Paper sx={{ mb: 3, p: 2 }}>
       <Box display="flex" justifyContent="space-between" alignItems="center">
-        <Typography variant="h6" component="div">
-          Sportsbook Filter
-        </Typography>
+        <Box>
+          <Typography variant="h6" component="div" sx={{ display: 'inline' }}>
+            Sportsbook Filter
+          </Typography>
+          <Typography 
+            variant="subtitle2" 
+            color="primary" 
+            sx={{ 
+              display: 'inline', 
+              ml: 1,
+              fontWeight: 'bold',
+              backgroundColor: 'rgba(0, 126, 51, 0.1)',
+              px: 1,
+              py: 0.5,
+              borderRadius: 1
+            }}
+          >
+            {selectedBookmakers.length}/{availableBookmakers.length}
+          </Typography>
+        </Box>
         <Box>
           <Button 
             size="small" 
@@ -81,11 +98,7 @@ const SportsbookFilter = ({
         </FormControl>
       </Collapse>
 
-      {!expanded && selectedBookmakers.length < availableBookmakers.length && (
-        <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-          {selectedBookmakers.length} of {availableBookmakers.length} sportsbooks selected
-        </Typography>
-      )}
+      {/* Status text removed as requested */}
     </Paper>
   );
 };

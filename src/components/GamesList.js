@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Grid, Typography, Tabs, Tab, Paper, Button, CircularProgress, Tooltip } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import { useAppTheme } from '../contexts/ThemeContext';
 import GameCard from './GameCard';
 import SportsbookFilter from './SportsbookFilter';
 import axios from 'axios';
@@ -30,6 +31,7 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
   const [selectedBookmakers, setSelectedBookmakers] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const { themeMode } = useAppTheme();
 
   const shouldUpdate = (timestamp) => {
     if (!timestamp) return true;
@@ -75,71 +77,100 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
     try {
       setLoading(true);
       setError(null);
-      let hasFirebaseWritePermission = true;
-
-      // First, try Firebase since it might have the most up-to-date data
+      
+      // Always prioritize Firebase data
       console.log(' Checking Firebase for data...');
-      let snapshot, timeSnapshot;
+      let sportData = null;
+      let lastUpdateTime = null;
       
       try {
-        const gamesRef = ref(database, 'games');
-        snapshot = await get(gamesRef);
-        const timestampRef = ref(database, 'lastUpdated');
-        timeSnapshot = await get(timestampRef);
+        // With our new structure, data is stored by sport
+        const sportRef = ref(database, `games/${selectedSport}`);
+        const sportSnapshot = await get(sportRef);
+        
+        if (sportSnapshot.exists()) {
+          const sportDataObj = sportSnapshot.val();
+          sportData = sportDataObj.data;
+          lastUpdateTime = sportDataObj.lastUpdated;
+          console.log(` Found ${sportData.length} games for ${selectedSport} in Firebase`);
+        } else {
+          console.log(` No data found for ${selectedSport} in Firebase`);
+        }
+        
+        // Also check API usage info
+        const apiUsageRef = ref(database, 'apiUsage');
+        const apiUsageSnapshot = await get(apiUsageRef);
+        
+        if (apiUsageSnapshot.exists()) {
+          const apiUsageData = apiUsageSnapshot.val();
+          // Store quota info in localStorage for admin access
+          localStorage.setItem('apiQuotaInfo', JSON.stringify({
+            remaining: apiUsageData.remainingRequests,
+            used: apiUsageData.usedRequests,
+            lastChecked: new Date(apiUsageData.lastUpdated).toISOString()
+          }));
+          
+          console.log(' API Quota - Remaining:', apiUsageData.remainingRequests, 'Used:', apiUsageData.usedRequests);
+        }
       } catch (firebaseReadError) {
         console.error(' Error reading from Firebase:', firebaseReadError);
-        // Continue with API call if Firebase read fails
+        // Continue with fallbacks if Firebase read fails
       }
 
-      if (!forceUpdate && snapshot && snapshot.exists() && timeSnapshot && timeSnapshot.exists()) {
-        const firebaseTimestamp = timeSnapshot.val();
-        console.log(' Found data in Firebase, checking if update needed...');
+      // If we have data from Firebase and it's not a force update, use it
+      if (!forceUpdate && sportData && lastUpdateTime) {
+        console.log(' Using data from Firebase');
+        processAndSetGames(sportData);
         
-        if (!shouldUpdate(firebaseTimestamp)) {
-          console.log(' Using data from Firebase');
-          const data = snapshot.val();
-          processAndSetGames(data);
-          
-          // Update localStorage with Firebase data
-          localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-          localStorage.setItem(CACHE_TIMESTAMP_KEY, firebaseTimestamp.toString());
-          
-          setLastUpdated(new Date(parseInt(firebaseTimestamp)));
-          setLoading(false);
-          return;
-        }
-      } else if (forceUpdate) {
-        console.log(' Force update requested, bypassing cache...');
-        console.log(' Firebase data needs update');
-      } else {
-        console.log(' No data found in Firebase or could not access Firebase');
+        // Update localStorage with Firebase data for offline access
+        localStorage.setItem(CACHE_KEY, JSON.stringify(sportData));
+        localStorage.setItem(CACHE_TIMESTAMP_KEY, lastUpdateTime.toString());
+        
+        setLastUpdated(new Date(lastUpdateTime));
+        setLoading(false);
+        return;
       }
-
-      // If we get here, either:
-      // 1. No Firebase data exists
-      // 2. Firebase data exists but needs update
-      // 3. Firebase data couldn't be accessed
-      console.log(' Fetching fresh data from API');
-      const sportPromises = SUPPORTED_SPORTS.map(sport =>
-        axios.get(`${config.API_BASE_URL}/sports/${sport}/odds`, {
+      
+      // If we're here, either:
+      // 1. No Firebase data exists for this sport
+      // 2. Force update was requested
+      // 3. Firebase couldn't be accessed
+      
+      // Try to use localStorage as a fallback
+      if (!forceUpdate) {
+        try {
+          const cachedData = localStorage.getItem(CACHE_KEY);
+          const cachedTimestamp = localStorage.getItem(CACHE_TIMESTAMP_KEY);
+          
+          if (cachedData && cachedTimestamp) {
+            const parsedData = JSON.parse(cachedData);
+            console.log(' Using cached data from localStorage as fallback');
+            processAndSetGames(parsedData);
+            setLastUpdated(new Date(parseInt(cachedTimestamp)));
+            setLoading(false);
+            return;
+          }
+        } catch (localStorageError) {
+          console.error(' Error accessing localStorage:', localStorageError);
+        }
+      }
+      
+      // As a last resort, if we can't get data from Firebase or localStorage,
+      // or if force update was requested, fetch from the API
+      console.log(' Fetching fresh data from API (this should only happen rarely)');
+      
+      try {
+        const response = await axios.get(`${config.API_BASE_URL}/sports/${selectedSport}/odds`, {
           params: {
             apiKey: config.API_KEY,
-            regions: 'us,eu',
+            regions: 'us',
             markets: 'h2h,spreads,totals',
             oddsFormat: 'american'
           }
-        }).catch(error => {
-          console.warn(` ${SPORT_LABELS[sport]} API Error:`, error);
-          return { data: [] };
-        })
-      );
-
-      const responses = await Promise.all(sportPromises);
-      
-      // Extract API quota information from the first valid response headers
-      // and store for admin use only (not displayed to users)
-      for (const response of responses) {
-        if (response && response.headers && response.headers['x-requests-remaining']) {
+        });
+        
+        // Extract API quota information
+        if (response.headers && response.headers['x-requests-remaining']) {
           const remaining = parseInt(response.headers['x-requests-remaining']);
           const used = parseInt(response.headers['x-requests-used']);
           
@@ -152,70 +183,50 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
           }));
           
           console.log(' API Quota - Remaining:', remaining, 'Used:', used, 'Total:', remaining + used);
-          break;
-        }
-      }
-      
-      // Combine all games
-      const allGames = responses.reduce((acc, response) => {
-        if (response.data) {
-          return [...acc, ...response.data];
-        }
-        return acc;
-      }, []);
-
-      // Sort games by commence time
-      const sortedGames = allGames.sort((a, b) => 
-        new Date(a.commence_time) - new Date(b.commence_time)
-      );
-
-      console.log(` Received ${sortedGames.length} games from API`);
-
-      // Try to store in Firebase, but don't stop if it fails
-      const now = new Date();
-      try {
-        console.log(' Attempting to store data in Firebase...');
-        // Test write permission with a small write first
-        try {
-          await set(ref(database, 'writeTest'), { test: true });
-          hasFirebaseWritePermission = true;
-          console.log(' Firebase write permission confirmed');
-        } catch (permissionError) {
-          hasFirebaseWritePermission = false;
-          console.warn(' Firebase write permission denied - skipping Firebase storage');
         }
         
-        if (hasFirebaseWritePermission) {
-          await Promise.all([
-            set(ref(database, 'games'), sortedGames)
-              .then(() => console.log(' Games stored in Firebase'))
-              .catch(error => console.error(' Firebase games storage error:', error)),
-            set(ref(database, 'lastUpdated'), now.getTime())
-              .then(() => console.log(' Timestamp stored in Firebase'))
-              .catch(error => console.error(' Firebase timestamp storage error:', error))
-          ]);
-        }
-      } catch (firebaseError) {
-        console.error(' Firebase storage error:', firebaseError);
-        // Continue with the app even if Firebase storage fails
-      }
-
-      // Update localStorage
-      try {
+        const gamesData = response.data;
+        console.log(` Received ${gamesData.length} games from API`);
+        
+        // Sort games by commence time
+        const sortedGames = gamesData.sort((a, b) => 
+          new Date(a.commence_time) - new Date(b.commence_time)
+        );
+        
+        // Process and display the games
+        processAndSetGames(sortedGames);
+        
+        // Store in localStorage for offline access
+        const now = new Date();
         localStorage.setItem(CACHE_KEY, JSON.stringify(sortedGames));
         localStorage.setItem(CACHE_TIMESTAMP_KEY, now.getTime().toString());
-        console.log(' Data cached in localStorage');
-      } catch (storageError) {
-        console.error(' localStorage error:', storageError);
-        // Continue even if localStorage fails
+        setLastUpdated(now);
+        
+        // Try to update Firebase with the new data (for other users)
+        // This is just a courtesy - our Cloud Function will handle the main updates
+        try {
+          const sportRef = ref(database, `games/${selectedSport}`);
+          await set(sportRef, {
+            data: sortedGames,
+            lastUpdated: now.getTime()
+          });
+          console.log(' Updated Firebase with fresh API data');
+        } catch (firebaseError) {
+          console.error(' Could not update Firebase:', firebaseError);
+          // Continue even if Firebase update fails
+        }
+      } catch (apiError) {
+        console.error(' API fetch error:', apiError);
+        setError('Unable to fetch current odds data. Please try again later.');
       }
 
-      // Always process and display the data regardless of Firebase/localStorage success
-      if (sortedGames && sortedGames.length > 0) {
-        processAndSetGames(sortedGames);
-        setLastUpdated(now);
-        console.log(' Successfully processed and displayed games data');
-      } else {
+      // If we get here and haven't returned yet, check if we have any data to display
+      if (loading) {
+        setLoading(false);
+      }
+      
+      // If no data has been set yet, try to use cached data from localStorage as a fallback
+      if (games.length === 0) {
         // If no games data from API, try to use cached data from localStorage as a fallback
         try {
           const cachedData = localStorage.getItem(CACHE_KEY);
@@ -255,10 +266,10 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
     }
   };
 
-  // Fetch games only once when component mounts
+  // Fetch games when component mounts or when sport changes
   useEffect(() => {
     fetchGames();
-  }, []);
+  }, [selectedSport]);
   
   // Function to force refresh data from API
   const forceRefresh = async () => {
@@ -326,8 +337,10 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
         sx={{ 
           textAlign: 'center',
           mb: 3,
-          color: '#39FF14',
-          textShadow: '0 0 5px rgba(57, 255, 20, 0.7), 0 0 10px rgba(57, 255, 20, 0.5), 0 0 15px rgba(57, 255, 20, 0.3)',
+          color: themeMode === 'light' ? '#007E33' : '#39FF14',
+          textShadow: themeMode === 'light'
+            ? '0 0 5px rgba(0, 126, 51, 0.7), 0 0 10px rgba(0, 126, 51, 0.5), 0 0 15px rgba(0, 126, 51, 0.3)'
+            : '0 0 5px rgba(57, 255, 20, 0.7), 0 0 10px rgba(57, 255, 20, 0.5), 0 0 15px rgba(57, 255, 20, 0.3)',
           fontWeight: 'bold',
           fontSize: { xs: '2rem', sm: '3rem' },
           fontFamily: "'Orbitron', sans-serif",
