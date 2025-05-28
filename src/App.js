@@ -1,65 +1,26 @@
 import React, { useState } from 'react';
-import { ThemeProvider, CssBaseline, Container, Box } from '@mui/material';
-import { createTheme } from '@mui/material/styles';
+import { ThemeProvider as MuiThemeProvider, CssBaseline, Container, Box } from '@mui/material';
 import GamesList from './components/GamesList';
 import HomePage from './components/HomePage';
 import Header from './components/Header';
 import ProfilePage from './components/auth/ProfilePage';
+import SettingsPage from './components/auth/SettingsPage';
 import FavoriteBets from './components/FavoriteBets';
+import EVsPage from './components/EVsPage';
+import AdminControls from './components/AdminControls';
+import BetTracker from './components/BetTracker';
+import BetTrackerFix from './components/BetTrackerFix';
 import { AuthProvider } from './contexts/AuthContext';
 import { FavoritesProvider } from './contexts/FavoritesContext';
+import { ThemeProvider, useAppTheme } from './contexts/ThemeContext';
 
-const theme = createTheme({
-  palette: {
-    mode: 'dark',
-    primary: {
-      main: '#39FF14', // Neon green
-    },
-    secondary: {
-      main: '#00E676', // Lighter green
-    },
-    background: {
-      default: '#121212',
-      paper: '#1e1e1e',
-    },
-  },
-  typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-    h1: {
-      fontFamily: '"Orbitron", sans-serif',
-    },
-    h2: {
-      fontFamily: '"Orbitron", sans-serif',
-    },
-    h3: {
-      fontFamily: '"Orbitron", sans-serif',
-    },
-  },
-  components: {
-    MuiButton: {
-      styleOverrides: {
-        root: {
-          borderRadius: 8,
-          textTransform: 'none',
-          fontWeight: 'bold',
-        },
-      },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          borderRadius: 12,
-          boxShadow: '0 8px 16px rgba(0, 0, 0, 0.2)',
-        },
-      },
-    },
-  },
-});
+// Theme is now managed by ThemeContext
 
-function App() {
+function AppContent() {
   // Explicitly set the initial state to 'home' to ensure the home page is shown by default
   const [currentPage, setCurrentPage] = useState('home');
   const [selectedSport, setSelectedSport] = useState('basketball_nba');
+  const { theme } = useAppTheme();
 
   // Navigation functions
   const navigateTo = (page, sportKey) => {
@@ -71,24 +32,45 @@ function App() {
   };
 
   return (
+    <MuiThemeProvider theme={theme}>
+      <CssBaseline />
+      <Header currentPage={currentPage} navigateTo={navigateTo} />
+      <Box sx={{ minHeight: 'calc(100vh - 64px)' }}>
+        <Container maxWidth="lg" sx={{ mt: 4 }}>
+          <AdminControls />
+        </Container>
+        {currentPage === 'home' ? (
+          <HomePage navigateTo={navigateTo} />
+        ) : currentPage === 'profile' ? (
+          <ProfilePage navigateTo={navigateTo} />
+        ) : currentPage === 'settings' ? (
+          <SettingsPage navigateTo={navigateTo} />
+        ) : currentPage === 'favorites' ? (
+          <FavoriteBets />
+        ) : currentPage === 'bets' ? (
+          <Container maxWidth="lg" sx={{ py: 4 }}>
+            <BetTracker />
+          </Container>
+        ) : currentPage === 'evs' ? (
+          <Container maxWidth="lg" sx={{ py: 4 }}>
+            <EVsPage />
+          </Container>
+        ) : (
+          <Container maxWidth="lg" sx={{ py: 4 }}>
+            <GamesList initialSport={selectedSport} />
+          </Container>
+        )}
+      </Box>
+    </MuiThemeProvider>
+  );
+}
+
+function App() {
+  return (
     <AuthProvider>
       <FavoritesProvider>
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <Header currentPage={currentPage} navigateTo={navigateTo} />
-          <Box sx={{ minHeight: 'calc(100vh - 64px)' }}>
-            {currentPage === 'home' ? (
-              <HomePage navigateTo={navigateTo} />
-            ) : currentPage === 'profile' ? (
-              <ProfilePage />
-            ) : currentPage === 'favorites' ? (
-              <FavoriteBets />
-            ) : (
-              <Container maxWidth="lg" sx={{ py: 4 }}>
-                <GamesList initialSport={selectedSport} />
-              </Container>
-            )}
-          </Box>
+        <ThemeProvider>
+          <AppContent />
         </ThemeProvider>
       </FavoritesProvider>
     </AuthProvider>

@@ -13,9 +13,14 @@ import {
   Divider,
   Card,
   CardContent,
-  Alert
+  Alert,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText
 } from '@mui/material';
 import { useAuth } from '../../contexts/AuthContext';
+import { useAppTheme } from '../../contexts/ThemeContext';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import EditIcon from '@mui/icons-material/Edit';
@@ -24,9 +29,12 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import LockIcon from '@mui/icons-material/Lock';
 import EmailIcon from '@mui/icons-material/Email';
 import PersonIcon from '@mui/icons-material/Person';
+import SettingsIcon from '@mui/icons-material/Settings';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 
-const ProfilePage = () => {
+const ProfilePage = ({ navigateTo }) => {
   const { currentUser } = useAuth();
+  const { theme } = useAppTheme();
   
   // State for password visibility
   const [showPassword, setShowPassword] = useState(false);
@@ -173,6 +181,26 @@ const ProfilePage = () => {
                   </Typography>
                 )}
               </Box>
+              
+              {/* Navigation Links */}
+              <List sx={{ mt: 3 }}>
+                <ListItem 
+                  button 
+                  onClick={() => navigateTo('settings')}
+                  sx={{ 
+                    borderRadius: 2,
+                    '&:hover': {
+                      bgcolor: 'rgba(57, 255, 20, 0.1)'
+                    }
+                  }}
+                >
+                  <ListItemIcon>
+                    <SettingsIcon sx={{ color: '#39FF14' }} />
+                  </ListItemIcon>
+                  <ListItemText primary="Settings" />
+                  <ChevronRightIcon sx={{ color: 'text.secondary' }} />
+                </ListItem>
+              </List>
             </CardContent>
           </Card>
         </Grid>

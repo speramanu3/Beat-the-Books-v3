@@ -160,12 +160,14 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
       console.log(' Fetching fresh data from API (this should only happen rarely)');
       
       try {
+        // Make sure we're requesting all available bookmakers including Pinnacle
         const response = await axios.get(`${config.API_BASE_URL}/sports/${selectedSport}/odds`, {
           params: {
             apiKey: config.API_KEY,
-            regions: 'us',
+            regions: 'us,eu', // Include EU region to get Pinnacle
             markets: 'h2h,spreads,totals',
-            oddsFormat: 'american'
+            oddsFormat: 'american',
+            bookmakers: 'pinnacle,fanduel,draftkings,betmgm,bovada,williamhill_us,barstool,pointsbet,bet365,unibet,betrivers,twinspires,betus,wynnbet,betonlineag,lowvig,mybookieag,betfred,superbook,circasports,betway,fanatics,caesars,foxbet,si_sportsbook,betfair,tipico,station,hard_rock,playup'
           }
         });
         

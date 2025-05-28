@@ -170,7 +170,10 @@ const UserProfile = ({ navigateTo }) => {
           Favorite Bets
         </MenuItem>
         
-        <MenuItem onClick={handleClose}>
+        <MenuItem onClick={() => {
+          handleClose();
+          if (navigateTo) navigateTo('settings');
+        }}>
           <ListItemIcon>
             <SettingsIcon fontSize="small" sx={{ color: '#39FF14' }} />
           </ListItemIcon>

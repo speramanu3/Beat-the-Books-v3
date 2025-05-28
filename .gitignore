@@ -21,3 +21,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 node_modules
+
+# Firebase admin SDK key - Contains sensitive credentials
+server/beat-the-books-183db-firebase-adminsdk-fbsvc-936ed31dee.json

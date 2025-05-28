@@ -14,13 +14,15 @@ import {
 import MenuIcon from '@mui/icons-material/Menu';
 import PersonIcon from '@mui/icons-material/Person';
 import { useAuth } from '../contexts/AuthContext';
+import { useAppTheme } from '../contexts/ThemeContext';
 import AuthModal from './auth/AuthModal';
 import UserProfile from './auth/UserProfile';
 
 const Header = ({ currentPage, navigateTo }) => {
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const muiTheme = useTheme();
+  const isMobile = useMediaQuery(muiTheme.breakpoints.down('md'));
   const { currentUser } = useAuth();
+  const { themeMode } = useAppTheme();
   
   // Mobile menu state
   const [mobileMenuAnchorEl, setMobileMenuAnchorEl] = useState(null);
@@ -56,11 +58,13 @@ const Header = ({ currentPage, navigateTo }) => {
   const navLinks = [
     { name: 'Home', page: 'home' },
     { name: 'Odds', page: 'odds' },
+    { name: 'EVs', page: 'evs' },
+    { name: 'My Bets', page: 'bets' },
   ];
   
   return (
     <>
-      <AppBar position="static" sx={{ background: '#121212' }}>
+      <AppBar position="static" sx={{ background: themeMode === 'light' ? '#f5f5f5' : '#121212' }}>
         <Toolbar>
           {/* Logo */}
           <Typography
@@ -68,13 +72,15 @@ const Header = ({ currentPage, navigateTo }) => {
             onClick={() => navigateTo('home')}
             sx={{
               cursor: 'pointer',
-              color: '#39FF14',
+              color: themeMode === 'light' ? '#007E33' : '#39FF14', // Darker green for light theme
               fontWeight: 'bold',
               flexGrow: { xs: 1, md: 0 },
               mr: { md: 4 },
               fontFamily: "'Orbitron', sans-serif",
               letterSpacing: 1,
-              textShadow: '0 0 5px rgba(57, 255, 20, 0.5)'
+              textShadow: themeMode === 'light' 
+                ? '0 0 5px rgba(0, 126, 51, 0.5)' 
+                : '0 0 5px rgba(57, 255, 20, 0.5)'
             }}
           >
             BEAT THE BOOKS
@@ -88,13 +94,17 @@ const Header = ({ currentPage, navigateTo }) => {
                   key={link.page}
                   onClick={() => navigateTo(link.page)}
                   sx={{
-                    color: currentPage === link.page ? '#39FF14' : '#fff',
+                    color: currentPage === link.page 
+                      ? (themeMode === 'light' ? '#007E33' : '#39FF14')
+                      : (themeMode === 'light' ? '#121212' : '#fff'),
                     display: 'block',
                     mx: 1,
                     '&:hover': {
-                      color: '#39FF14',
+                      color: themeMode === 'light' ? '#007E33' : '#39FF14',
                     },
-                    borderBottom: currentPage === link.page ? '2px solid #39FF14' : 'none',
+                    borderBottom: currentPage === link.page 
+                      ? `2px solid ${themeMode === 'light' ? '#007E33' : '#39FF14'}` 
+                      : 'none',
                     borderRadius: 0,
                     paddingBottom: '6px',
                   }}
@@ -116,12 +126,12 @@ const Header = ({ currentPage, navigateTo }) => {
                     variant="outlined" 
                     onClick={() => handleAuthModalOpen(0)}
                     sx={{ 
-                      color: '#fff', 
-                      borderColor: 'rgba(255, 255, 255, 0.3)',
+                      color: themeMode === 'light' ? '#121212' : '#fff', 
+                      borderColor: themeMode === 'light' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.3)',
                       mr: 2,
                       '&:hover': {
-                        borderColor: '#39FF14',
-                        backgroundColor: 'rgba(57, 255, 20, 0.1)'
+                        borderColor: themeMode === 'light' ? '#007E33' : '#39FF14',
+                        backgroundColor: themeMode === 'light' ? 'rgba(0, 126, 51, 0.1)' : 'rgba(57, 255, 20, 0.1)'
                       }
                     }}
                   >
@@ -131,10 +141,10 @@ const Header = ({ currentPage, navigateTo }) => {
                     variant="contained" 
                     onClick={() => handleAuthModalOpen(1)}
                     sx={{ 
-                      backgroundColor: '#39FF14',
-                      color: '#000',
+                      backgroundColor: themeMode === 'light' ? '#007E33' : '#39FF14',
+                      color: '#fff',
                       '&:hover': {
-                        backgroundColor: '#32CD32'
+                        backgroundColor: themeMode === 'light' ? '#00A65A' : '#32CD32'
                       }
                     }}
                   >

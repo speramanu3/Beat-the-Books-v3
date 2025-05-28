@@ -1,0 +1,117 @@
+{
+  "games": {
+    "basketball_nba": {
+      "data": [
+        {
+          "id": "d8df18d13a93eeaa5c8242289a517c4b",
+          "sport_key": "basketball_nba",
+          "sport_title": "NBA",
+          "commence_time": "2025-05-22T00:05:00Z",
+          "home_team": "New York Knicks",
+          "away_team": "Indiana Pacers",
+          "bookmakers": [
+            {
+              "key": "fanduel",
+              "title": "FanDuel",
+              "last_update": "2025-05-18T02:47:47Z",
+              "markets": [
+                {
+                  "key": "h2h",
+                  "last_update": "2025-05-18T02:47:47Z",
+                  "outcomes": [
+                    {
+                      "name": "New York Knicks",
+                      "price": -180,
+                      "btb_price": //Pull the price of this market and team from the Pinnacle sportsbook. 
+                      "reference_no_vig": //Formula: = if(btb_price<0,abs(btb_price)/(abs(btb_price)+100),100/(100+btb_price))
+                      "book_no_vig": //Formula: if(price<0,abs(price)/(abs(price)+100),100/(100+price))
+                      "reference_earnings": //IF(btb_price<0,100/(abs(btb_price)/100),100*btb_price/100)
+                      "book_earnings": //IF(price<0,100/(abs(price)/100),100*price/100)
+                      "reference_counter_odds": //Formula: if(btb_price<0,100/(1.04-reference_no_vig)-100,-(100*(1.04-reference_no_vig))/(1-(1.04-reference_no_vig)))
+                      "expected_value": //Formula: if(btb_price="","",(book_earnings*reference_no_vig-100*(1-reference_no_vig))/100)
+                    },
+                    {
+                      "name": "Indiana Pacers",
+                      "price": 150 
+                      "btb_price": //Pull the price of this market and team from the Pinnacle sportsbook. 
+                      "reference_no_vig": //Formula: = if(btb_price<0,abs(btb_price)/(abs(btb_price)+100),100/(100+btb_price))
+                      "book_no_vig": //Formula: if(price<0,abs(price)/(abs(price)+100),100/(100+price))
+                      "reference_earnings": //IF(btb_price<0,100/(abs(btb_price)/100),100*btb_price/100)
+                      "book_earnings": //IF(price<0,100/(abs(price)/100),100*price/100)
+                      "reference_counter_odds": //Formula: if(btb_price<0,100/(1.04-reference_no_vig)-100,-(100*(1.04-reference_no_vig))/(1-(1.04-reference_no_vig)))
+                      "expected_value": //Formula: if(btb_price="","",(book_earnings*reference_no_vig-100*(1-reference_no_vig))/100)
+
+                    }
+                  ]
+                },
+                {
+                  "key": "spreads",
+                  "last_update": "2025-05-18T02:47:47Z",
+                  "outcomes": [
+                    {
+                      "name": "New York Knicks",
+                      "price": -110,
+                      "point": -4.5
+                      "btb_price": //Pull the price of this market and team from the Pinnacle sportsbook. 
+                      "btb_point": //Pull the point of this market and team from the Pinnacle sportsbook. 
+                      "reference_no_vig": //Formula: = if(btb_price<0,abs(btb_price)/(abs(btb_price)+100),100/(100+btb_price))
+                      "book_no_vig": //Formula: if(price<0,abs(price)/(abs(price)+100),100/(100+price))
+                      "reference_earnings": //IF(btb_price<0,100/(abs(btb_price)/100),100*btb_price/100)
+                      "book_earnings": //IF(price<0,100/(abs(price)/100),100*price/100)
+                      "reference_counter_odds": //Formula: if(btb_price<0,100/(1.04-reference_no_vig)-100,-(100*(1.04-reference_no_vig))/(1-(1.04-reference_no_vig)))
+                      "expected_value": //Formula: if(btb_price="","",(book_earnings*reference_no_vig-100*(1-reference_no_vig))/100)
+
+                    },
+                    {
+                      "name": "Indiana Pacers",
+                      "price": -110,
+                      "point": 4.5
+                      "btb_price": //Pull the price of this market and team from the Pinnacle sportsbook. 
+                      "btb_point": //Pull the point of this market and team from the Pinnacle sportsbook. 
+                      "reference_no_vig": //Formula: = if(btb_price<0,abs(btb_price)/(abs(btb_price)+100),100/(100+btb_price))
+                      "book_no_vig": //Formula: if(price<0,abs(price)/(abs(price)+100),100/(100+price))
+                      "reference_earnings": //IF(btb_price<0,100/(abs(btb_price)/100),100*btb_price/100)
+                      "book_earnings": //IF(price<0,100/(abs(price)/100),100*price/100)
+                      "reference_counter_odds": //Formula: if(btb_price<0,100/(1.04-reference_no_vig)-100,-(100*(1.04-reference_no_vig))/(1-(1.04-reference_no_vig)))
+                      "expected_value": //Formula: if(btb_price="","",(book_earnings*reference_no_vig-100*(1-reference_no_vig))/100)
+                    }
+                  ]
+                },
+                {
+                  "key": "totals",
+                  "last_update": "2025-05-18T02:47:47Z",
+                  "outcomes": [
+                    {
+                      "name": "Over",
+                      "price": -110,
+                      "point": 223
+                      "btb_price": //Pull the price of this market and team from the Pinnacle sportsbook. 
+                      "btb_point": //Pull the point of this market and team from the Pinnacle sportsbook. 
+                      "reference_no_vig": //Formula: = if(btb_price<0,abs(btb_price)/(abs(btb_price)+100),100/(100+btb_price))
+                      "book_no_vig": //Formula: if(price<0,abs(price)/(abs(price)+100),100/(100+price))
+                      "reference_earnings": //IF(btb_price<0,100/(abs(btb_price)/100),100*btb_price/100)
+                      "book_earnings": //IF(price<0,100/(abs(price)/100),100*price/100)
+                      "reference_counter_odds": //Formula: if(btb_price<0,100/(1.04-reference_no_vig)-100,-(100*(1.04-reference_no_vig))/(1-(1.04-reference_no_vig)))
+                      "expected_value": //Formula: if(btb_price="","",(book_earnings*reference_no_vig-100*(1-reference_no_vig))/100)
+                    },
+                    {
+                      "name": "Under",
+                      "price": -110,
+                      "point": 223
+                      "btb_price": //Pull the price of this market and team from the Pinnacle sportsbook. 
+                      "btb_point": //Pull the point of this market and team from the Pinnacle sportsbook. 
+                      "reference_no_vig": //Formula: = if(btb_price<0,abs(btb_price)/(abs(btb_price)+100),100/(100+btb_price))
+                      "book_no_vig": //Formula: if(price<0,abs(price)/(abs(price)+100),100/(100+price))
+                      "reference_earnings": //IF(btb_price<0,100/(abs(btb_price)/100),100*btb_price/100)
+                      "book_earnings": //IF(price<0,100/(abs(price)/100),100*price/100)
+                      "reference_counter_odds": //Formula: if(btb_price<0,100/(1.04-reference_no_vig)-100,-(100*(1.04-reference_no_vig))/(1-(1.04-reference_no_vig)))
+                      "expected_value": //Formula: if(btb_price="","",(book_earnings*reference_no_vig-100*(1-reference_no_vig))/100)
+                    }
+                  ]
+                }
+              ]
+            }
+      "lastUpdated": 1747536510030
+    }
+  }
+}
