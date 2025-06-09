@@ -524,6 +524,12 @@ const GameCard = ({ game, selectedBookmakers }) => {
       )}
 
       {/* Desktop view - detailed odds are shown in the accordion component */}
+      {!isMobile && (
+        <DetailedOddsView 
+          game={filteredGame} 
+          hideAccordion={false} 
+        />
+      )}
     </Paper>
   );
 };
