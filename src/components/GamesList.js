@@ -8,6 +8,7 @@ import axios from 'axios';
 import config from '../config';
 import { database } from '../firebaseConfig';
 import { ref, set, get } from 'firebase/database';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
 
 const SUPPORTED_SPORTS = ['americanfootball_nfl', 'basketball_nba', 'icehockey_nhl', 'baseball_mlb'];
 
@@ -31,7 +32,30 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
   const [selectedBookmakers, setSelectedBookmakers] = useState([]);
   const [lastUpdated, setLastUpdated] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [userId, setUserId] = useState(null);
   const { themeMode } = useAppTheme();
+  
+  // Handle authentication state
+  useEffect(() => {
+    const auth = getAuth();
+    console.log('[GamesList] Setting up auth state listener');
+    
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserId(user.uid);
+        console.log('[GamesList] User authenticated, UID:', user.uid);
+      } else {
+        setUserId(null);
+        setGames([]); // Clear games when user logs out
+        setAvailableBookmakers([]);
+        setLastUpdated(null);
+        console.log('[GamesList] User not authenticated. Cleared games data.');
+      }
+    });
+    
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, []);
 
   const shouldUpdate = (timestamp) => {
     if (!timestamp) return true;
@@ -74,6 +98,13 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
   };
 
   const fetchGames = async (forceUpdate = false) => {
+    // Check if user is authenticated
+    if (!userId) {
+      console.log('[GamesList] Cannot fetch games: User not authenticated');
+      setLoading(false);
+      setGames([]);
+      return;
+    }
     try {
       setLoading(true);
       setError(null);

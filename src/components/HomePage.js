@@ -129,7 +129,7 @@ const HomePage = ({ navigateTo }) => {
       description: 'Track baseball odds from all major sportsbooks',
       color: '#002D72',
       sportKey: 'baseball_mlb',
-      comingSoon: true
+      comingSoon: false
     },
     { 
       name: 'Soccer', 

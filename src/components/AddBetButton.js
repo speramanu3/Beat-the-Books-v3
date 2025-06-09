@@ -18,11 +18,14 @@ import {
   Zoom
 } from '@mui/material';
 import AddCircleIcon from '@mui/icons-material/AddCircle';
-import { get, set, ref, getDatabase } from 'firebase/database';
+import { get, set, ref, push, getDatabase } from 'firebase/database'; // Added push
+import { getAuth } from 'firebase/auth';
+import AuthErrorDialog from './auth/AuthErrorDialog';
 
-const AddBetButton = ({ game, bookmaker, market, outcome }) => {
+const AddBetButton = ({ game, bookmaker, market, outcome, userId: propUserId }) => { // Added userId as propUserId
   const [open, setOpen] = useState(false);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [authErrorOpen, setAuthErrorOpen] = useState(false);
   const [betDetails, setBetDetails] = useState({
     gameId: game?.id || '',
     homeTeam: game?.home_team || '',
@@ -40,6 +43,15 @@ const AddBetButton = ({ game, bookmaker, market, outcome }) => {
   });
 
   const handleOpen = () => {
+    const auth = getAuth();
+    const currentUserId = propUserId || auth.currentUser?.uid;
+    
+    if (!currentUserId) {
+      console.error('[AddBetButton] User not logged in. Cannot add bet.');
+      setAuthErrorOpen(true);
+      return;
+    }
+    
     setOpen(true);
   };
 
@@ -56,18 +68,45 @@ const AddBetButton = ({ game, bookmaker, market, outcome }) => {
   };
 
   const handleSaveBet = async () => {
+    const auth = getAuth();
+    const currentUserId = propUserId || auth.currentUser?.uid;
+
+    if (!currentUserId) {
+      console.error('[AddBetButton] Error saving bet: User ID is not available. User might be logged out.');
+      setAuthErrorOpen(true);
+      return;
+    }
+
+    console.log('[AddBetButton] handleSaveBet called.');
+    console.log('[AddBetButton] Initial betDetails from state:', JSON.parse(JSON.stringify(betDetails)));
+    console.log('[AddBetButton] User ID determined as:', currentUserId);
+
     try {
       const db = getDatabase();
-      const newBetRef = ref(db, `user_bets/${Date.now()}`);
-      await set(newBetRef, betDetails);
+      const userBetsPathRef = ref(db, `user_bets/${currentUserId}`);
+      const newBetPushRef = push(userBetsPathRef); // Generates unique ID under user_bets/USER_ID
+
+      const betDataToSave = {
+        ...betDetails, // Spread existing details from the form
+        id: newBetPushRef.key,    // Set the Firebase-generated push key as the bet's ID
+        userId: currentUserId,    // Explicitly store the userId in the bet object
+        timestamp: Date.now()     // Keep or update timestamp as needed
+      };
+
+      console.log('[AddBetButton] Attempting to save bet.');
+      console.log('[AddBetButton] Path for set (newBetPushRef):', newBetPushRef.toString());
+      console.log('[AddBetButton] Data to save (betDataToSave):', JSON.parse(JSON.stringify(betDataToSave)));
+
+      await set(newBetPushRef, betDataToSave);
       
-      // Close dialog after saving
-      setOpen(false);
-      
-      // Show success notification
-      setSnackbarOpen(true);
+      console.log('[AddBetButton] Bet saved successfully to path:', newBetPushRef.toString());
+      setOpen(false); // Close dialog after saving
+      setSnackbarOpen(true); // Show success notification (ensure this snackbar can show success/error)
+
     } catch (error) {
-      console.error('Error saving bet:', error);
+      console.error('[AddBetButton] Error saving bet:', error);
+      // TODO: Show a user-friendly error in the snackbar or dialog
+      // For now, just log. If snackbar is used, ensure it can display error messages.
     }
   };
   
@@ -256,6 +295,13 @@ const AddBetButton = ({ game, bookmaker, market, outcome }) => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Authentication Error Dialog */}
+      <AuthErrorDialog 
+        open={authErrorOpen} 
+        onClose={() => setAuthErrorOpen(false)} 
+        message="You need to be signed in to add a bet. Would you like to sign in now?"
+      />
     </>
   );
 };

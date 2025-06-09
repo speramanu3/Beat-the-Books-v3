@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { 
   Box, 
   Typography, 
@@ -16,16 +16,36 @@ import {
   Grid,
   CircularProgress,
   Button,
-  Stack
+  Stack,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Container,
+  Chip,
+  IconButton,
+  Divider,
+  Tooltip,
+  useMediaQuery,
+  alpha
 } from '@mui/material';
+import { useTheme } from '@mui/material/styles';
 import { useAppTheme } from '../contexts/ThemeContext';
 import SportsbookFilter from './SportsbookFilter';
 import axios from 'axios';
 import config from '../config';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import { getDatabase, ref, get, onValue, set } from 'firebase/database';
 import { database } from '../firebaseConfig';
-import { ref, get, set } from 'firebase/database';
-import AddBetButton from './AddBetButton';
+import AddBetButtonV2 from './AddBetButtonV2';
 import { format } from 'date-fns';
+import { createCache, throttle, setupActivityTracking } from '../utils/cacheUtils';
+import { checkBetExists, setupUserBetsListener } from '../utils/syncUtils';
+import useResponsiveLayout from '../hooks/useResponsiveLayout';
+import { getTeamDisplay } from '../utils/teamUtils';
+import KeyboardArrowRightIcon from '@mui/icons-material/KeyboardArrowRight';
+import KeyboardArrowLeftIcon from '@mui/icons-material/KeyboardArrowLeft';
+import MobileEVTable from './MobileEVTable';
 
 const SUPPORTED_SPORTS = ['americanfootball_nfl', 'basketball_nba', 'icehockey_nhl', 'baseball_mlb'];
 
@@ -54,6 +74,22 @@ const EVsPage = () => {
   const [sortBy, setSortBy] = useState('evPercent'); // Default sort by EV
   const [sortDirection, setSortDirection] = useState('desc'); // Default sort direction
   const { themeMode } = useAppTheme();
+  const [userId, setUserId] = useState(null);
+  const [userBets, setUserBets] = useState([]);
+
+  const [availableMarkets, setAvailableMarkets] = useState([]);
+  const [selectedMarket, setSelectedMarket] = useState('all');
+  const [availableGames, setAvailableGames] = useState([]);
+  const [selectedGame, setSelectedGame] = useState('all');
+  
+  // Responsive layout hook for mobile optimizations
+  const { isMobile, tableSize, fontSize } = useResponsiveLayout();
+  
+  const theme = useTheme();
+  const { mode } = useAppTheme();
+  const tableRef = useRef(null);
+  const [showLeftScroll, setShowLeftScroll] = useState(false);
+  const [showRightScroll, setShowRightScroll] = useState(true);
 
   // Function to handle sport tab change
   const handleSportChange = (event, newValue) => {
@@ -90,6 +126,239 @@ const EVsPage = () => {
   const handleMaxWidthChange = (event, newValue) => {
     setMaxWidth(newValue);
   };
+
+  // Function to handle market filter change
+  const handleMarketChange = (event) => {
+    setSelectedMarket(event.target.value);
+  };
+
+  // Function to handle game filter change
+  const handleGameChange = (event) => {
+    setSelectedGame(event.target.value);
+  };
+  
+  // Handle horizontal scroll for mobile table
+  const handleTableScroll = (event) => {
+    const { scrollLeft, scrollWidth, clientWidth } = event.target;
+    
+    // Show left indicator if scrolled right
+    setShowLeftScroll(scrollLeft > 0);
+    
+    // Show right indicator if not scrolled all the way right
+    setShowRightScroll(scrollLeft < scrollWidth - clientWidth - 5); // 5px buffer
+  };
+  
+  // Create a cache for user bets with 5-minute TTL
+  const userBetsCache = useMemo(() => createCache(5), []);
+  
+  // Function to fetch user's existing bets with caching
+  const fetchUserBets = async (uid, forceRefresh = false) => {
+    if (!uid) {
+      console.log('[EVsPage] No user ID provided, skipping fetch');
+      setUserBets([]);
+      return;
+    }
+    
+    const cacheKey = `user_bets_${uid}`;
+    
+    // Return from cache if available and not forcing refresh
+    if (!forceRefresh) {
+      const cachedData = userBetsCache.get(cacheKey);
+      if (cachedData) {
+        console.log('[EVsPage] Using cached user bets:', cachedData.length);
+        setUserBets(cachedData);
+        return;
+      }
+    }
+    
+    try {
+      console.log(`[EVsPage] Fetching bets for user: ${uid}${forceRefresh ? ' (forced refresh)' : ''}`);
+      const db = getDatabase();
+      const userBetsRef = ref(db, `user_bets/${uid}`);
+      const snapshot = await get(userBetsRef);
+      
+      if (snapshot.exists()) {
+        const betsData = snapshot.val();
+        const betsArray = Object.values(betsData);
+        console.log('[EVsPage] Fetched user bets:', betsArray.length);
+        console.log('[EVsPage] Sample bet data:', betsArray.length > 0 ? betsArray[0] : 'No bets');
+        
+        // Update cache and state
+        userBetsCache.set(cacheKey, betsArray);
+        setUserBets(betsArray);
+      } else {
+        console.log('[EVsPage] No existing bets found for user');
+        userBetsCache.set(cacheKey, []);
+        setUserBets([]);
+      }
+    } catch (error) {
+      console.error('[EVsPage] Error fetching user bets:', error);
+      setUserBets([]);
+    }
+  };
+  
+  // Throttled version of fetchUserBets to prevent excessive calls
+  const throttledFetchUserBets = useMemo(() => 
+    throttle((uid) => fetchUserBets(uid), 10000), // Limit to once every 10 seconds
+  []);
+  
+  // Memoized bet check results to avoid repeated checks
+  const [betCheckResults, setBetCheckResults] = useState({});
+  
+  // Helper function to normalize bookmaker keys for consistent comparison
+  const normalizeBookmakerKey = (key) => {
+    if (!key) return '';
+    // Convert to lowercase for consistent comparison
+    const lowerKey = key.toLowerCase();
+    // Handle specific cases where keys might differ between data sources
+    if (lowerKey === 'lowvig') return 'lowvig';
+    if (lowerKey === 'lowvig.ag') return 'lowvig';
+    if (lowerKey === 'betway') return 'betway';
+    if (lowerKey === 'betway.ag') return 'betway';
+    return lowerKey;
+  };
+
+  // Function to check if a bet has already been added by the user (synchronous version)
+  const isBetAdded = (gameId, bookmakerKey, market, outcome, point) => {
+    // Static counter to prevent excessive logging
+    isBetAdded.logCount = isBetAdded.logCount || 0;
+    
+    // Early return with minimal logging if any required parameter is missing
+    if (!userId || !gameId || !bookmakerKey || !market || !outcome) {
+      // Only log every 100th occurrence to avoid console spam
+      if (isBetAdded.logCount % 100 === 0) {
+        console.log('[EVsPage] isBetAdded: Missing required parameters', { 
+          userId: userId ? 'present' : 'missing', 
+          gameId: gameId ? 'present' : 'missing', 
+          bookmakerKey: bookmakerKey ? 'present' : 'missing', 
+          market: market ? 'present' : 'missing', 
+          outcome: outcome ? 'present' : 'missing'
+        });
+      }
+      isBetAdded.logCount++;
+      return false;
+    }
+    
+    // Reset log counter when valid parameters are received
+    isBetAdded.logCount = 0;
+    
+    // Normalize the bookmaker key
+    const normalizedBookmakerKey = normalizeBookmakerKey(bookmakerKey);
+    
+    // Create a unique key for this bet using the normalized bookmaker key
+    const betKey = `${gameId}_${normalizedBookmakerKey}_${market}_${outcome}_${point !== undefined ? point : ''}`;
+    
+    // Debug logging for bet checking (limited to avoid spam)
+    if (Math.random() < 0.01) { // Only log ~1% of checks
+      console.log(`[EVsPage] Checking if bet exists: ${betKey}`);
+    }
+    
+    // Check if we already have a cached result for this bet
+    if (betCheckResults[betKey] !== undefined) {
+      // Only log 0.1% of cached results to drastically reduce console noise
+      if (Math.random() < 0.001) {
+        console.log(`[EVsPage] Using cached result for ${betKey}: ${betCheckResults[betKey]}`);
+      }
+      return betCheckResults[betKey];
+    }
+    
+    // Fall back to the slower approach using the full userBets array
+    if (!userBets.length) {
+      console.log('[EVsPage] No user bets found, returning false');
+      return false;
+    }
+    
+    // Check if this bet exists in the user's bets
+    const exists = userBets.some(bet => {
+      // Normalize the stored sportsbook key for comparison
+      const storedSportsbook = normalizeBookmakerKey(bet.sportsbook || bet.bookmakerKey);
+      
+      // Check if this is the same bet
+      const sameGame = bet.gameId === gameId;
+      const sameSportsbook = storedSportsbook === normalizedBookmakerKey;
+      const sameMarket = bet.market === market || bet.betType === market;
+      const sameOutcome = bet.outcome === outcome || bet.team === outcome;
+      
+      // For point spreads and totals, also check the point value
+      let samePoint = true;
+      if (point !== undefined && bet.point !== undefined) {
+        samePoint = parseFloat(bet.point) === parseFloat(point);
+      }
+      
+      // Log detailed matching information for debugging
+      if (sameGame && (sameSportsbook || storedSportsbook.includes(normalizedBookmakerKey) || normalizedBookmakerKey.includes(storedSportsbook))) {
+        console.log('[EVsPage] Potential bet match found:', {
+          bet,
+          storedSportsbook,
+          normalizedBookmakerKey,
+          sameGame,
+          sameSportsbook,
+          sameMarket,
+          sameOutcome,
+          samePoint,
+          isMatch: sameGame && sameSportsbook && sameMarket && sameOutcome && samePoint
+        });
+      }
+      
+      return sameGame && sameSportsbook && sameMarket && sameOutcome && samePoint;
+    });
+    
+    // Cache the result for future checks
+    setBetCheckResults(prev => {
+      const newResults = {
+        ...prev,
+        [betKey]: exists
+      };
+      console.log(`[EVsPage] Caching result for ${betKey}: ${exists}`);
+      return newResults;
+    });
+    
+    return exists;
+  };
+  
+  // Pre-check all bets in the background to populate the cache
+  useEffect(() => {
+    if (!userId || !userBets.length || !games.length) return;
+    
+    // Populate the bet check results cache
+    const populateBetCheckCache = async () => {
+      const newResults = {};
+      
+      // Process each game
+      games.forEach(game => {
+        game.bookmakers?.forEach(bookmaker => {
+          bookmaker.markets?.forEach(market => {
+            market.outcomes?.forEach(outcome => {
+              const key = `${game.id}_${bookmaker.key}_${market.key}_${outcome.name}_${outcome.point || ''}`;
+              newResults[key] = userBets.some(bet => {
+                if (!bet || !bet.gameId || !bet.sportsbook || !bet.betType || !bet.team) return false;
+                
+                const betSportsbookLower = bet.sportsbook ? bet.sportsbook.toLowerCase() : '';
+                const bookmakerKeyLower = bookmaker.key ? bookmaker.key.toLowerCase() : '';
+                
+                if ((market.key === 'spreads' || market.key === 'totals') && outcome.point !== undefined) {
+                  return bet.gameId === game.id &&
+                         betSportsbookLower === bookmakerKeyLower &&
+                         bet.betType === market.key &&
+                         bet.team === outcome.name &&
+                         bet.point === outcome.point;
+                }
+                
+                return bet.gameId === game.id &&
+                       betSportsbookLower === bookmakerKeyLower &&
+                       bet.betType === market.key &&
+                       bet.team === outcome.name;
+              });
+            });
+          });
+        });
+      });
+      
+      setBetCheckResults(newResults);
+    };
+    
+    populateBetCheckCache();
+  }, [userId, userBets, games]);
   
   // Function to handle sort change
   const handleSortChange = (property) => {
@@ -526,8 +795,8 @@ const EVsPage = () => {
   useEffect(() => {
     // Reset the initial load completion flag when sport changes, so bookmakers are re-selected for the new sport
     if (selectedSport) { // only run if selectedSport is defined
-        window.sessionStorage.removeItem('evPageInitialLoadComplete'); 
-        fetchGames();
+      window.sessionStorage.removeItem('evPageInitialLoadComplete'); 
+      fetchGames();
     }
   }, [selectedSport]); // Runs on mount (due to initial selectedSport) and when selectedSport changes
 
@@ -543,13 +812,156 @@ const EVsPage = () => {
     }
   }, [games, selectedBookmakers]); // Dependencies: raw games and selected bookmakers
 
+  // Populate market and game filters when evBets change
+  useEffect(() => {
+    if (evBets.length > 0) {
+      const markets = [...new Set(evBets.map(bet => bet.market))];
+      setAvailableMarkets(markets.sort());
+
+      const gamesMap = new Map();
+      evBets.forEach(bet => {
+        if (!gamesMap.has(bet.gameId)) {
+          gamesMap.set(bet.gameId, {
+            display: `${bet.awayTeam} @ ${bet.homeTeam} (${format(new Date(bet.commenceTime), 'MMM d')})`,
+            commenceTime: bet.commenceTime
+          });
+        }
+      });
+      const gamesList = Array.from(gamesMap.entries())
+        .map(([id, data]) => ({ id, display: data.display, commenceTime: data.commenceTime }))
+        .sort((a, b) => {
+          const dateA = new Date(a.commenceTime);
+          const dateB = new Date(b.commenceTime);
+          if (dateA.getTime() !== dateB.getTime()) {
+            return dateA - dateB;
+          }
+          return a.display.localeCompare(b.display);
+        });
+      setAvailableGames(gamesList.map(({id, display}) => ({id, display}))); // Store only id and display for the Select options
+    } else {
+      setAvailableMarkets([]);
+      setAvailableGames([]);
+      setSelectedMarket('all'); // Reset filters when no data
+      setSelectedGame('all');   // Reset filters when no data
+    }
+  }, [evBets]);
+
   // Initial fetch on mount (if selectedSport is already set, which it is)
   // The selectedSport useEffect already covers the initial mount case because selectedSport is initialized.
   // No separate empty-dependency useEffect needed for fetchGames if selectedSport handles it.
+  
+  // Track user activity state
+  const [isUserActive, setIsUserActive] = useState(true);
+  
+  // Authentication state listener with efficient bet syncing
+  useEffect(() => {
+    const auth = getAuth();
+    let betsListener = null;
+    
+    const authUnsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserId(user.uid);
+        
+        // Initial fetch of user bets
+        fetchUserBets(user.uid);
+        
+        // Set up real-time listener for recent bets (last 24 hours)
+        betsListener = setupUserBetsListener(user.uid, (bets) => {
+          console.log('[EVsPage] Real-time update received:', bets.length, 'bets');
+          setUserBets(bets);
+          userBetsCache.set(`user_bets_${user.uid}`, bets);
+          // Clear bet check results to force recalculation
+          setBetCheckResults({});
+        });
+      } else {
+        setUserId(null);
+        setUserBets([]);
+        setBetCheckResults({});
+      }
+    });
+    
+    return () => {
+      authUnsubscribe();
+      if (betsListener) betsListener();
+    };
+  }, []);
+  
+  // Set up activity tracking and optimized refresh strategy
+  useEffect(() => {
+    if (!userId) return;
+    
+    // Handle visibility change with throttling
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[EVsPage] Page became visible, refreshing user bets');
+        throttledFetchUserBets(userId);
+      }
+    };
+    
+    // Listen for the betAdded event to refresh user bets
+    const handleBetAdded = (event) => {
+      console.log('[EVsPage] Bet added event detected', event.detail);
+      
+      if (userId) {
+        // Get the details of the added bet
+        const { gameId, sportsbook, bookmakerKey, market, outcome, point } = event.detail;
+        const normalizedKey = normalizeBookmakerKey(sportsbook || bookmakerKey);
+        
+        // Clear specific cache entries related to this bet
+        setBetCheckResults(prev => {
+          const newResults = {...prev};
+          // Clear any cache entries that match this game and sportsbook
+          Object.keys(newResults).forEach(key => {
+            if (key.startsWith(`${gameId}_${normalizedKey}`)) {
+              console.log(`[EVsPage] Clearing cache for ${key}`);
+              delete newResults[key];
+            }
+          });
+          return newResults;
+        });
+        
+        // Fetch fresh data
+        fetchUserBets(userId);
+      }
+      setBetCheckResults({});
+    };
+    
+    // Set up activity tracking
+    const activityCleanup = setupActivityTracking(5 * 60 * 1000, (active) => {
+      setIsUserActive(active);
+      console.log(`[EVsPage] User is now ${active ? 'active' : 'inactive'}`);
+      
+      // Refresh data when user becomes active again
+      if (active) {
+        fetchUserBets(userId, true);
+      }
+    });
+    
+    // Add event listeners
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('betAdded', handleBetAdded);
+    
+    // Set up a polling interval with different frequencies based on user activity
+    const intervalId = setInterval(() => {
+      if (isUserActive) {
+        console.log('[EVsPage] Active user periodic refresh');
+        throttledFetchUserBets(userId);
+      } else {
+        console.log('[EVsPage] Inactive user - skipping refresh');
+      }
+    }, isUserActive ? 60000 : 300000); // 1 minute when active, 5 minutes when inactive
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('betAdded', handleBetAdded);
+      clearInterval(intervalId);
+      activityCleanup();
+    };
+  }, [userId, isUserActive, throttledFetchUserBets]);
 
   // Filtered and sorted EVs for display
   const filteredEvBets = useMemo(() => {
-    if (evBets.length === 0) { // Now check evBets directly
+    if (evBets.length === 0) {
         return [];
     }
     return evBets
@@ -559,16 +971,31 @@ const EVsPage = () => {
           return false;
         }
         
-        // Filter by minimum EV (using actual value, not absolute value)
-        if (bet.evPercent < minEv * 100) {
+        // Filter by minimum EV
+        // minEv state is a decimal (e.g., 0.05 for 5%)
+        // bet.evPercent is a percentage (e.g., 5 for 5% EV)
+        if (bet.evPercent < (minEv * 100)) {
           return false;
         }
         
         // Filter by maximum width
-        if (bet.width === null || bet.width === undefined) {
-          return true; // Always show bets with no width value
+        // If width is null/undefined, don't filter it out by width.
+        // Only filter if width exists and is greater than maxWidth.
+        if (bet.width !== null && bet.width !== undefined && bet.width > maxWidth) {
+          return false;
         }
-        return bet.width <= maxWidth;
+
+        // Filter by market
+        if (selectedMarket !== 'all' && bet.market !== selectedMarket) {
+          return false;
+        }
+
+        // Filter by game
+        if (selectedGame !== 'all' && bet.gameId !== selectedGame) {
+          return false;
+        }
+        
+        return true; // If all checks pass
       })
       .sort((a, b) => {
         // Sort by the selected property
@@ -583,9 +1010,7 @@ const EVsPage = () => {
         }
         return 0;
       });
-  // Ensure selectedBookmakers is not a direct dependency here if evBets already incorporates it.
-  // selectedSport is fine as it's a final display filter.
-  }, [evBets, minEv, maxWidth, sortBy, sortDirection, selectedSport]);
+  }, [evBets, minEv, maxWidth, sortBy, sortDirection, selectedSport, selectedMarket, selectedGame]);
 
   // Render the table of EV bets
   const renderEvTable = () => {
@@ -599,6 +1024,27 @@ const EVsPage = () => {
       );
     }
 
+    // Use mobile-optimized table on small screens
+    if (isMobile) {
+      return (
+        <MobileEVTable
+          filteredEvBets={filteredEvBets}
+          sortBy={sortBy}
+          sortDirection={sortDirection}
+          handleSortChange={handleSortChange}
+          formatMarket={formatMarket}
+          formatWidth={formatWidth}
+          formatOdds={formatOdds}
+          formatProbability={formatProbability}
+          formatEVPercentage={formatEVPercentage}
+          formatDate={formatDate}
+          userId={userId}
+          isBetAdded={isBetAdded}
+        />
+      );
+    }
+
+    // Use standard table for desktop
     return (
       <TableContainer component={Paper}>
         <Table aria-label="EV bets table">
@@ -702,26 +1148,31 @@ const EVsPage = () => {
                       >
                         {formatEVPercentage(bet.ev)}
                       </Typography>
-                      <AddBetButton 
-                        game={{
-                          id: bet.gameId,
-                          home_team: bet.homeTeam,
-                          away_team: bet.awayTeam,
-                          commence_time: bet.commenceTime
-                        }}
-                        bookmaker={{
-                          key: bet.bookmakerKey,
-                          title: bet.bookmaker
-                        }}
-                        market={{
-                          key: bet.market
-                        }}
-                        outcome={{
-                          name: bet.outcome,
-                          price: bet.odds,
-                          point: bet.point
-                        }}
+                      {/* Only render AddBetButtonV2 if all required properties exist */}
+                      {bet.gameId && (bet.bookmakerKey || bet.bookmaker) && bet.market && bet.outcome ? (
+                        <AddBetButtonV2 
+                          game={{
+                            id: bet.gameId,
+                            home_team: bet.homeTeam || '',
+                            away_team: bet.awayTeam || '',
+                            commence_time: bet.commenceTime || new Date().toISOString()
+                          }}
+                          bookmaker={{
+                            key: bet.bookmakerKey || bet.bookmaker, // Use bookmaker as fallback for key
+                            title: bet.bookmaker || bet.bookmakerKey || ''
+                          }}
+                          market={{
+                            key: bet.market
+                          }}
+                          outcome={{
+                            name: bet.outcome,
+                            price: bet.odds || 0,
+                            point: bet.point
+                          }}
+                          userId={userId} // Pass the userId to AddBetButton
+                          isAdded={isBetAdded(bet.gameId, bet.bookmakerKey || bet.bookmaker, bet.market, bet.outcome, bet.point)} // Check if bet is already added with fallbacks
                       />
+                      ) : null}
                     </Stack>
                   </TableCell>
                 </TableRow>
@@ -767,13 +1218,68 @@ const EVsPage = () => {
         <>
           <Grid container spacing={3} sx={{ mb: 3 }}>
             <Grid item xs={12} md={8}>
-              <SportsbookFilter
-                availableBookmakers={availableBookmakers}
-                selectedBookmakers={selectedBookmakers}
-                onBookmakerChange={handleBookmakerChange}
-                onSelectAll={handleSelectAllBookmakers}
-                onClearAll={handleClearAllBookmakers}
-              />
+              <Stack spacing={2}>
+                <SportsbookFilter
+                  availableBookmakers={availableBookmakers}
+                  selectedBookmakers={selectedBookmakers}
+                  onBookmakerChange={handleBookmakerChange}
+                  onSelectAll={handleSelectAllBookmakers}
+                  onClearAll={handleClearAllBookmakers}
+                />
+
+                {/* Market Filter */}
+                {availableMarkets.length > 0 && (
+                  <FormControl fullWidth variant="outlined" size="small">
+                    <InputLabel id="market-filter-label">Market</InputLabel>
+                    <Select
+                      labelId="market-filter-label"
+                      id="market-filter-select"
+                      value={selectedMarket}
+                      label="Market"
+                      onChange={handleMarketChange}
+                    >
+                      <MenuItem value="all">
+                        <em>All Markets</em>
+                      </MenuItem>
+                      {availableMarkets.map((market) => (
+                        <MenuItem key={market} value={market}>
+                          {formatMarket(market)}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+
+                {/* Game Filter */}
+                {availableGames.length > 0 && (
+                  <FormControl fullWidth variant="outlined" size="small">
+                    <InputLabel id="game-filter-label">Game</InputLabel>
+                    <Select
+                      labelId="game-filter-label"
+                      id="game-filter-select"
+                      value={selectedGame}
+                      label="Game"
+                      onChange={handleGameChange}
+                      MenuProps={{
+                        PaperProps: {
+                          style: {
+                            maxHeight: 300, // Limit dropdown height
+                          },
+                        },
+                      }}
+                    >
+                      <MenuItem value="all">
+                        <em>All Games</em>
+                      </MenuItem>
+                      {availableGames.map((game) => (
+                        <MenuItem key={game.id} value={game.id}>
+                          {game.display}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                )}
+              </Stack>
             </Grid>
             <Grid item xs={12} md={4}>
               <Paper sx={{ p: 2 }}>

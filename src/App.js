@@ -49,7 +49,7 @@ function AppContent() {
           <FavoriteBets />
         ) : currentPage === 'bets' ? (
           <Container maxWidth="lg" sx={{ py: 4 }}>
-            <BetTracker />
+            <BetTrackerFix />
           </Container>
         ) : currentPage === 'evs' ? (
           <Container maxWidth="lg" sx={{ py: 4 }}>

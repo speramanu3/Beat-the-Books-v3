@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { auth } from '../firebaseConfig'; // Assuming firebaseConfig.js is in src/
-import { addBetAddedListener, syncCheckedBets } from '../utils/betSyncUtils';
 import { 
   Box, 
   Typography, 
@@ -25,12 +24,7 @@ import {
   TableHead,
   TableRow,
   Tabs,
-  Tab,
-  CircularProgress,
-  Snackbar,
-  Alert,
-  Divider,
-  useTheme
+  Tab
 } from '@mui/material';
 import AuthErrorDialog from './auth/AuthErrorDialog';
 import { styled } from '@mui/material/styles';
@@ -41,7 +35,6 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import EditIcon from '@mui/icons-material/Edit';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import ListIcon from '@mui/icons-material/List';
-import SyncIcon from '@mui/icons-material/Sync';
 import BetTrackerCharts from './BetTrackerCharts';
 import BetMigrationTool from './BetMigrationTool';
 import { useAppTheme } from '../contexts/ThemeContext';
@@ -154,11 +147,6 @@ const BetTracker = () => {
     roi: 0,
     totalProfit: 0,
   });
-  
-  // State for sync functionality
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [syncResult, setSyncResult] = useState(null);
-  const [syncSnackbarOpen, setSyncSnackbarOpen] = useState(false);
 
   // Load unit value from localStorage and set up storage event listener
   useEffect(() => {
@@ -197,8 +185,21 @@ const BetTracker = () => {
     };
   }, [unitValue]);
   
-  // Define fetchBets as a memoized function to avoid recreation on every render
-  const fetchBets = useCallback(async () => {
+  // Fetch bets from Firebase
+  // Add a listener for betAdded events to refresh the bet list
+  useEffect(() => {
+    const handleBetAdded = () => {
+      console.log('[BetTracker] Detected betAdded event, refreshing bets');
+      fetchBets();
+    };
+
+    window.addEventListener('betAdded', handleBetAdded);
+    return () => {
+      window.removeEventListener('betAdded', handleBetAdded);
+    };
+  }, [userId]); // Re-attach listener if userId changes
+
+  const fetchBets = async () => {
     if (!userId) {
       console.log("[BetTracker] User not logged in or userId not yet available, cannot fetch bets.");
       setBets([]); // Ensure bets are cleared if no userId
@@ -308,93 +309,10 @@ const BetTracker = () => {
     } catch (error) {
       console.error('[BetTracker] Error fetching bets:', error);
     }
-  }, [userId, calculateStats]);
-  // The fetchBets function is already defined above
-  
-  // Function to load unit value from localStorage
-  const loadUnitValue = () => {
-    const savedUnitValue = localStorage.getItem('unitValue');
-    if (savedUnitValue) {
-      setUnitValue(parseFloat(savedUnitValue));
-    }
   };
   
-  // Function to sync checked bets that aren't properly saved in Firebase
-  const handleSyncCheckedBets = async () => {
-    if (!userId) {
-      setAuthErrorOpen(true);
-      return;
-    }
-    
-    setIsSyncing(true);
-    setSyncResult(null);
-    
-    try {
-      console.log('[BetTracker] Starting bet synchronization');
-      
-      // 1. Get all bets that are currently saved in Firebase
-      const savedBets = [...bets];
-      console.log('[BetTracker] Current saved bets:', savedBets.length);
-      
-      // 2. Get all checked bets from localStorage (stored by EVsPage)
-      const checkedBetsJson = localStorage.getItem('checkedBets');
-      let checkedBets = [];
-      
-      if (checkedBetsJson) {
-        try {
-          checkedBets = JSON.parse(checkedBetsJson);
-          console.log('[BetTracker] Found checked bets in localStorage:', checkedBets.length);
-        } catch (error) {
-          console.error('[BetTracker] Error parsing checked bets from localStorage:', error);
-        }
-      } else {
-        console.log('[BetTracker] No checked bets found in localStorage');
-      }
-      
-      // 3. Use the syncCheckedBets utility to sync any missing bets
-      const result = await syncCheckedBets(checkedBets, savedBets, userId);
-      console.log('[BetTracker] Sync result:', result);
-      
-      // 4. Update state with the result
-      setSyncResult(result);
-      setSyncSnackbarOpen(true);
-      
-      // 5. Refresh bets to show newly synced bets
-      if (result.synced > 0) {
-        fetchBets();
-      }
-    } catch (error) {
-      console.error('[BetTracker] Error syncing checked bets:', error);
-      setSyncResult({ success: false, error: error.message });
-      setSyncSnackbarOpen(true);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-  
-  // Set up listener for bet added events using our utility function
-  useEffect(() => {
-    console.log('[BetTracker] Setting up betAdded event listener');
-    const removeListener = addBetAddedListener((betDetails) => {
-      console.log('[BetTracker] Bet added event received via betSyncUtils with details:', betDetails);
-      console.log('[BetTracker] Refreshing bets after betAdded event');
-      fetchBets();
-    });
-    
-    // Clean up listener on unmount
-    return () => removeListener();
-  }, [fetchBets]);
-  
-  // Fetch bets when component mounts or when dependencies change
-  useEffect(() => {
-    console.log('[BetTracker] Initial fetch of bets');
-    fetchBets();
-  }, [fetchBets, selectedMonth, selectedYear, unitValue]);
-  
-  // Load initial unit value
-  useEffect(() => {
-    loadUnitValue();
-  }, []);
+  // Load initial value
+  loadUnitValue();
   
   // Set up storage event listener to detect changes from other tabs/components
   const handleStorageChange = (e) => {
@@ -403,55 +321,114 @@ const BetTracker = () => {
     }
   };
   
-  // Effect for storage event listener and interval check
-  useEffect(() => {
-    // Add storage event listener
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Set up an interval to check for changes every second (for same-tab updates)
-    const intervalId = setInterval(() => {
-      const currentUnitValue = localStorage.getItem('unitValue');
-      if (currentUnitValue && parseFloat(currentUnitValue) !== unitValue) {
-        setUnitValue(parseFloat(currentUnitValue));
-      }
-    }, 1000);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      clearInterval(intervalId);
-    };
-  }, [unitValue]);
+  window.addEventListener('storage', handleStorageChange);
   
-  // Legacy event listener for betAdded (can be removed once betSyncUtils is fully implemented)
-  useEffect(() => {
-    const handleBetAdded = (event) => {
-      console.log('[BetTracker] Detected legacy betAdded event with details:', event.detail);
-      console.log('[BetTracker] Refreshing bets after legacy betAdded event');
-      fetchBets();
-    };
-    
-    window.addEventListener('betAdded', handleBetAdded);
-    return () => {
-      window.removeEventListener('betAdded', handleBetAdded);
-    };
-  }, [fetchBets]);
-
-  const handleCloseDialog = () => {
-    setOpenDialog(false);
-    setCurrentBet(null);
+  // Set up an interval to check for changes every second (for same-tab updates)
+  const intervalId = setInterval(() => {
+    const currentUnitValue = localStorage.getItem('unitValue');
+    if (currentUnitValue && parseFloat(currentUnitValue) !== unitValue) {
+      setUnitValue(parseFloat(currentUnitValue));
+    }
+  }, 1000);
+  
+  // Clean up
+  return () => {
+    window.removeEventListener('storage', handleStorageChange);
+    clearInterval(intervalId);
+  };
+}, [unitValue]);
+  
+// Fetch bets from Firebase
+// Add a listener for betAdded events to refresh the bet list
+useEffect(() => {
+  const handleBetAdded = () => {
+    console.log('[BetTracker] Detected betAdded event, refreshing bets');
+    fetchBets();
   };
 
-  const handleOpenDialog = (bet = null) => {
-    if (bet) {
-      setCurrentBet({
-        ...bet,
-        units: bet.units || '1',
-        result: bet.result || 'pending',
-        notes: bet.notes || ''
-      });
-      setEditMode(true);
-    } else {
+  window.addEventListener('betAdded', handleBetAdded);
+  return () => {
+    window.removeEventListener('betAdded', handleBetAdded);
+  };
+}, [userId]); // Re-attach listener if userId changes
+
+const fetchBets = async () => {
+  if (!userId) {
+    console.log("[BetTracker] User not logged in or userId not yet available, cannot fetch bets.");
+    setBets([]); // Ensure bets are cleared if no userId
+    calculateStats([]); // Recalculate stats with empty bets
+    return;
+  }
+  
+  try {
+    const db = getDatabase();
+    
+    // First, try to fetch from user_bet_summaries path (new format)
+    const userBetSummariesPath = `user_bet_summaries/${userId}`;
+    console.log('[BetTracker] Fetching bets from user_bet_summaries path:', userBetSummariesPath);
+    const betSummariesRef = ref(db, userBetSummariesPath);
+    const summariesSnapshot = await get(betSummariesRef);
+    
+    // Then, try to fetch from user_bets path (old format)
+    const userBetsPath = `user_bets/${userId}`;
+    console.log('[BetTracker] Fetching bets from user_bets path:', userBetsPath);
+    const betsRef = ref(db, userBetsPath);
+    const snapshot = await get(betsRef);
+    
+    let betsArray = [];
+    
+    // Process bets from the new format if they exist (prioritize these)
+    if (summariesSnapshot.exists()) {
+      const summariesData = summariesSnapshot.val();
+      console.log('[BetTracker] Bet summaries data:', summariesData);
+      
+      const newFormatBets = Object.keys(summariesData).map(key => {
+        const [gameId, bookmakerKey] = key.split('_');
+        const summary = summariesData[key];
+        
+        // Extract team information from the bet data
+        let homeTeam = summary.homeTeam || '';
+        let awayTeam = summary.awayTeam || '';
+        let teams = summary.teams || '';
+        
+        // Try to extract teams from the teams field if it exists and homeTeam/awayTeam are not set
+        if (teams && (!homeTeam || !awayTeam)) {
+          const teamsMatch = teams.match(/(.+)\s+@\s+(.+)/);
+          if (teamsMatch && teamsMatch.length === 3) {
+            awayTeam = teamsMatch[1].trim();
+            homeTeam = teamsMatch[2].trim();
+          }
+        }
+        
+        // If we have homeTeam and awayTeam but no teams string, create it
+        if (!teams && homeTeam && awayTeam) {
+          teams = `${awayTeam} @ ${homeTeam}`;
+        }
+        
+        // Create a comprehensive bet object with all fields needed for display
+        return {
+          id: key,
+          source: 'user_bet_summaries',
+          gameId: gameId,
+          sportsbook: bookmakerKey,
+          bookmakerTitle: summary.bookmakerTitle || summary.bookmaker || bookmakerKey,
+          gameDate: summary.gameDate || summary.commenceTime || new Date().toISOString(),
+          teams: teams,
+          homeTeam: homeTeam,
+          awayTeam: awayTeam,
+          market: summary.market || summary.betType || 'Unknown Market',
+          betType: summary.betType || summary.market || 'Unknown Type',
+          outcome: summary.outcome || summary.team || 'Unknown Outcome',
+          team: summary.team || summary.outcome || '',
+          odds: summary.odds || summary.price || '0',
+          units: summary.units || '1',
+          result: summary.result || 'pending',
+          notes: summary.notes || '',
+          timestamp: summary.timestamp || Date.now(),
+          point: summary.point || summary.line || '',
+          line: summary.line || summary.point || '',
+          ...summary
+        };
       setCurrentBet({
         gameId: '',
         homeTeam: '',
@@ -460,14 +437,19 @@ const BetTracker = () => {
         betType: 'moneyline',
         team: '',
         odds: '',
-        units: '1',
+        units: 1,
         sportsbook: '',
         result: 'pending',
-        notes: ''
+        notes: '',
       });
       setEditMode(false);
     }
     setOpenDialog(true);
+  };
+
+  const handleCloseDialog = () => {
+    setOpenDialog(false);
+    setCurrentBet(null);
   };
 
   const handleInputChange = (e) => {
@@ -618,21 +600,8 @@ const BetTracker = () => {
 
   return (
     <Box sx={{ p: 2 }}>
-      <Typography 
-        variant="h4" 
-        gutterBottom
-        sx={{ 
-          fontFamily: '"Montserrat", sans-serif', 
-          fontWeight: 700,
-          background: 'linear-gradient(45deg, #2196F3 30%, #21CBF3 90%)',
-          WebkitBackgroundClip: 'text',
-          WebkitTextFillColor: 'transparent',
-          letterSpacing: '1px',
-          textShadow: '2px 2px 4px rgba(0,0,0,0.3)',
-          fontSize: '2.5rem'
-        }}
-      >
-        BET TRACKER
+      <Typography variant="h4" gutterBottom>
+        Bet Tracker
       </Typography>
       
       {/* Migration Tool - This helps fix permission issues */}
@@ -685,18 +654,6 @@ const BetTracker = () => {
           {months[selectedMonth]} {selectedYear} Summary
         </Typography>
         <Grid container spacing={2}>
-          <Grid item xs={12} display="flex" justifyContent="flex-end" mb={2}>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={handleSyncCheckedBets}
-              disabled={isSyncing}
-              startIcon={isSyncing ? <CircularProgress size={20} /> : <SyncIcon />}
-              sx={{ ml: 'auto' }}
-            >
-              {isSyncing ? 'Syncing...' : 'Sync Checked Bets'}
-            </Button>
-          </Grid>
           <Grid item xs={6} sm={2}>
             <Typography variant="body2">Total Bets</Typography>
             <Typography variant="h6">{stats.totalBets}</Typography>
@@ -1062,24 +1019,6 @@ const BetTracker = () => {
         onClose={() => setAuthErrorOpen(false)} 
         message="You need to be signed in to add or edit bets. Would you like to sign in now?"
       />
-      
-      {/* Snackbar for sync results */}
-      <Snackbar
-        open={syncSnackbarOpen}
-        autoHideDuration={6000}
-        onClose={() => setSyncSnackbarOpen(false)}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        <Alert 
-          onClose={() => setSyncSnackbarOpen(false)} 
-          severity={syncResult?.success ? 'success' : 'error'}
-          sx={{ width: '100%' }}
-        >
-          {syncResult?.success 
-            ? `Sync complete: ${syncResult.synced} bet${syncResult.synced !== 1 ? 's' : ''} synced` 
-            : `Sync failed: ${syncResult?.error || 'Unknown error'}`}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };

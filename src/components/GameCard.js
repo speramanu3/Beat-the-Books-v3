@@ -1,7 +1,11 @@
-import React, { useMemo } from 'react';
-import { Paper, Grid, Typography, Box, Avatar, useTheme, useMediaQuery, IconButton, Tooltip } from '@mui/material';
+import React, { useMemo, useState } from 'react';
+import { Paper, Grid, Typography, Box, Avatar, useTheme, useMediaQuery, IconButton, Tooltip, Collapse, Button } from '@mui/material';
 import { format } from 'date-fns';
 import { getTeamLogo } from '../utils/teamLogos';
+import useResponsiveLayout from '../hooks/useResponsiveLayout';
+import { getTeamDisplay } from '../utils/teamUtils';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 import DetailedOddsView from './DetailedOddsView';
 import { getProcessedOdds, formatOdds } from '../utils/oddsProcessing';
 import FavoriteIcon from '@mui/icons-material/Favorite';
@@ -11,7 +15,8 @@ import { useAuth } from '../contexts/AuthContext';
 
 const GameCard = ({ game, selectedBookmakers }) => {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { isMobile } = useResponsiveLayout();
+  const [expanded, setExpanded] = useState(false);
   const { currentUser } = useAuth();
   const { isFavorite, toggleFavorite } = useFavorites();
 
@@ -33,11 +38,84 @@ const GameCard = ({ game, selectedBookmakers }) => {
     underTotal: getProcessedOdds(filteredGame, 'totals', 'Under')
   }), [filteredGame, game.home_team, game.away_team]);
 
+  // New combined teams display for mobile
+  const TeamsDisplayMobile = () => (
+    <Box 
+      display="flex" 
+      justifyContent="center"
+      alignItems="center"
+      mb={1}
+      component="article"
+      role="article"
+      aria-label="Game Teams"
+      sx={{ width: '100%' }}
+    >
+      {/* Away Team */}
+      <Box display="flex" alignItems="center" mr={1}>
+        <Avatar
+          src={getTeamLogo(game.sport_key, game.away_team)}
+          alt={`${game.away_team} logo`}
+          sx={{ 
+            width: 24, 
+            height: 24,
+            mr: 0.5,
+            bgcolor: 'background.paper'
+          }}
+        />
+        <Typography 
+          variant="h6" 
+          component="h3"
+          sx={{ 
+            fontWeight: 'bold',
+            fontSize: '1rem',
+            lineHeight: 1.2
+          }}
+        >
+          {getTeamDisplay(game.away_team, true)}
+        </Typography>
+      </Box>
+      
+      {/* VS */}
+      <Typography 
+        variant="body2" 
+        sx={{ mx: 0.5, fontWeight: 'bold' }}
+      >
+        @
+      </Typography>
+      
+      {/* Home Team */}
+      <Box display="flex" alignItems="center" ml={1}>
+        <Avatar
+          src={getTeamLogo(game.sport_key, game.home_team)}
+          alt={`${game.home_team} logo`}
+          sx={{ 
+            width: 24, 
+            height: 24,
+            mr: 0.5,
+            bgcolor: 'background.paper'
+          }}
+        />
+        <Typography 
+          variant="h6" 
+          component="h3"
+          sx={{ 
+            fontWeight: 'bold',
+            fontSize: '1rem',
+            lineHeight: 1.2
+          }}
+        >
+          {getTeamDisplay(game.home_team, true)}
+        </Typography>
+      </Box>
+    </Box>
+  );
+
+  // Original team display for desktop
   const TeamDisplay = ({ team, isHome }) => (
     <Box 
       display="flex" 
       alignItems="center" 
-      mb={isMobile ? 0.5 : 1}
+      mb={1}
       component="article"
       role="article"
       aria-label={`${team} ${isHome ? 'Home' : 'Away'} Team`}
@@ -46,27 +124,31 @@ const GameCard = ({ game, selectedBookmakers }) => {
         src={getTeamLogo(game.sport_key, team)}
         alt={`${team} logo`}
         sx={{ 
-          width: isMobile ? 30 : 40, 
-          height: isMobile ? 30 : 40, 
-          mr: isMobile ? 1 : 2 
+          width: 32, 
+          height: 32,
+          mr: 1,
+          bgcolor: 'background.paper'
         }}
       />
       <Box>
         <Typography 
-          variant={isMobile ? "body1" : "h6"} 
-          component="span"
+          variant="h6" 
+          component="h3"
           sx={{ 
-            fontSize: isMobile ? '0.9rem' : undefined,
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            fontSize: '1.25rem',
+            lineHeight: 1.2
           }}
         >
-          {team}
+          {getTeamDisplay(team, false)}
         </Typography>
         <Typography 
-          variant="caption" 
-          color="text.secondary" 
-          display="block"
-          sx={{ fontSize: isMobile ? '0.7rem' : '0.75rem' }}
+          variant="body2" 
+          color="text.secondary"
+          sx={{ 
+            fontSize: '0.875rem',
+            lineHeight: 1
+          }}
         >
           {isHome ? 'Home' : 'Away'}
         </Typography>
@@ -254,6 +336,11 @@ const GameCard = ({ game, selectedBookmakers }) => {
     </Box>
   );
 
+  // Toggle expanded state for mobile view
+  const toggleExpanded = () => {
+    setExpanded(!expanded);
+  };
+
   return (
     <Paper 
       elevation={3} 
@@ -262,7 +349,8 @@ const GameCard = ({ game, selectedBookmakers }) => {
         mb: 2,
         width: '100%',
         overflow: 'hidden', // Prevent horizontal scroll
-        position: 'relative' // For positioning the favorite icon
+        position: 'relative', // For positioning the favorite icon
+        transition: 'all 0.3s ease'
       }}
       component="article"
       role="article"
@@ -290,31 +378,31 @@ const GameCard = ({ game, selectedBookmakers }) => {
           </IconButton>
         </Tooltip>
       )}
-      <Grid container spacing={isMobile ? 1 : 2}>
-        {/* Team Info Column */}
-        <Grid item xs={4}>
-          <Box>
-            <TeamDisplay team={game.away_team} isHome={false} />
-            <TeamDisplay team={game.home_team} isHome={true} />
-            <Typography 
-              variant="caption" 
-              color="text.secondary"
-              sx={{ 
-                display: 'block',
-                mt: 1,
-                fontSize: isMobile ? '0.6rem' : '0.75rem'
-              }}
-              role="time"
-              aria-label="Game start time"
-            >
-              {format(new Date(game.commence_time), 'EEE, MMM d • h:mm a')}
-            </Typography>
-          </Box>
-        </Grid>
+      {/* Mobile View */}
+      {isMobile && (
+        <>
+          {/* Centered Teams Display */}
+          <TeamsDisplayMobile />
+          
+          {/* Game Time */}
+          <Typography 
+            variant="caption" 
+            color="text.secondary"
+            sx={{ 
+              display: 'block',
+              textAlign: 'center',
+              mb: 1.5,
+              fontSize: '0.7rem'
+            }}
+            role="time"
+            aria-label="Game start time"
+          >
+            {format(new Date(game.commence_time), 'EEE, MMM d • h:mm a')}
+          </Typography>
 
-        {/* Odds Columns */}
-        <Grid item xs={8}>
-          <Grid container spacing={isMobile ? 0.5 : 2}>
+          {/* Best Odds Display - Always visible */}
+          <Grid container spacing={2}>
+            {/* Moneyline */}
             <Grid item xs={4}>
               <MoneylineSection 
                 title="Moneyline"
@@ -322,6 +410,8 @@ const GameCard = ({ game, selectedBookmakers }) => {
                 homeOdds={odds.homeMoneyline}
               />
             </Grid>
+
+            {/* Spread */}
             <Grid item xs={4}>
               <SpreadSection 
                 title="Spread"
@@ -329,6 +419,8 @@ const GameCard = ({ game, selectedBookmakers }) => {
                 homeOdds={odds.homeSpread}
               />
             </Grid>
+
+            {/* Totals */}
             <Grid item xs={4}>
               <TotalsSection 
                 title="Over/Under"
@@ -337,11 +429,103 @@ const GameCard = ({ game, selectedBookmakers }) => {
               />
             </Grid>
           </Grid>
-        </Grid>
-      </Grid>
 
-      {/* Detailed View */}
-      <DetailedOddsView game={filteredGame} />
+          {/* View All Available Odds Button */}
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              justifyContent: 'center',
+              mt: 2,
+              borderTop: 1,
+              borderColor: 'divider',
+              pt: 1
+            }}
+          >
+            <Button 
+              onClick={toggleExpanded}
+              endIcon={expanded ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+              size="small"
+              sx={{ 
+                textTransform: 'none',
+                color: 'primary.main',
+                fontSize: '0.8rem'
+              }}
+            >
+              {expanded ? 'Hide All Available Odds' : 'View All Available Odds'}
+            </Button>
+          </Box>
+
+          {/* Expanded Details - Only for All Available Odds */}
+          <Collapse in={expanded}>
+            <Box sx={{ mt: 1, pt: 1, borderTop: 1, borderColor: 'divider' }}>
+              <DetailedOddsView 
+                game={game} 
+                selectedBookmakers={selectedBookmakers}
+                showHeader={false}
+                condensed={true}
+              />
+            </Box>
+          </Collapse>
+        </>
+      )}
+
+      {/* Desktop View */}
+      {!isMobile && (
+        <Grid container spacing={2}>
+          {/* Team Info Column */}
+          <Grid item xs={4}>
+            <Box>
+              <TeamDisplay team={game.away_team} isHome={false} />
+              <TeamDisplay team={game.home_team} isHome={true} />
+              <Typography 
+                variant="caption" 
+                color="text.secondary"
+                sx={{ 
+                  display: 'block',
+                  mt: 1,
+                  fontSize: '0.75rem'
+                }}
+                role="time"
+                aria-label="Game start time"
+              >
+                {format(new Date(game.commence_time), 'EEE, MMM d • h:mm a')}
+              </Typography>
+            </Box>
+          </Grid>
+
+          {/* Odds Columns */}
+          <Grid item xs={8}>
+            <Grid container spacing={2}>
+              <Grid item xs={4}>
+                <MoneylineSection 
+                  title="Moneyline"
+                  awayOdds={odds.awayMoneyline}
+                  homeOdds={odds.homeMoneyline}
+                />
+              </Grid>
+              <Grid item xs={4}>
+                <SpreadSection 
+                  title="Spread"
+                  awayOdds={odds.awaySpread}
+                  homeOdds={odds.homeSpread}
+                />
+              </Grid>
+              <Grid item xs={4}>
+                <TotalsSection 
+                  title="Over/Under"
+                  overOdds={odds.overTotal}
+                  underOdds={odds.underTotal}
+                />
+              </Grid>
+            </Grid>
+          </Grid>
+        </Grid>
+      )}
+
+      {/* Detailed View - Only show in expanded mode on mobile */}
+      {(!isMobile || (isMobile && expanded)) && (
+        <DetailedOddsView game={filteredGame} />
+      )}
     </Paper>
   );
 };

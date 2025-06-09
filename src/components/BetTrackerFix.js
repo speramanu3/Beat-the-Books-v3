@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Box, 
   Typography, 
@@ -27,7 +27,9 @@ import {
   Tab
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { get, set, ref, getDatabase } from 'firebase/database';
+import { get, set, ref, getDatabase, push } from 'firebase/database';
+import { getAuth, onAuthStateChanged } from 'firebase/auth';
+import AuthErrorDialog from './auth/AuthErrorDialog';
 import DeleteIcon from '@mui/icons-material/Delete';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
@@ -52,6 +54,7 @@ const BetTrackerFix = () => {
   const [editMode, setEditMode] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [unitValue, setUnitValue] = useState(25); // Default unit value
+  const [userId, setUserId] = useState(null); // Add userId state
   const [stats, setStats] = useState({
     totalBets: 0,
     wins: 0,
@@ -65,6 +68,7 @@ const BetTrackerFix = () => {
   });
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [authErrorOpen, setAuthErrorOpen] = useState(false);
 
   // Load unit value from localStorage
   useEffect(() => {
@@ -74,13 +78,54 @@ const BetTrackerFix = () => {
     }
   }, []);
   
-  // Fetch bets from Firebase
+  // Effect to handle user authentication state
+  useEffect(() => {
+    const auth = getAuth();
+    console.log('[BetTrackerFix] Setting up auth state listener');
+    
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUserId(user.uid);
+        console.log('[BetTrackerFix] User authenticated, UID:', user.uid);
+      } else {
+        setUserId(null);
+        setBets([]); // Clear bets when user logs out
+        // Reset stats when user logs out
+        setStats({
+          totalBets: 0,
+          wins: 0,
+          losses: 0,
+          pushes: 0,
+          unitsWagered: 0,
+          unitsWon: 0,
+          unitsLost: 0,
+          roi: 0,
+          totalProfit: 0,
+        });
+        console.log('[BetTrackerFix] User not authenticated. Cleared bets and stats.');
+      }
+    });
+    
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, []);
+  
+  // Fetch bets from Firebase when userId changes or month/year selection changes
   useEffect(() => {
     const fetchBets = async () => {
+      if (!userId) {
+        console.log('[BetTrackerFix] Cannot fetch bets: No user ID available');
+        return;
+      }
+      
+      console.log('[BetTrackerFix] Fetching bets for user ID:', userId);
+      
       try {
         const db = getDatabase();
-        const betsRef = ref(db, 'user_bets');
-        const snapshot = await get(betsRef);
+        const userBetsRef = ref(db, `user_bets/${userId}`);
+        console.log('[BetTrackerFix] Fetching from path:', userBetsRef.toString());
+        
+        const snapshot = await get(userBetsRef);
         
         if (snapshot.exists()) {
           const betsData = snapshot.val();
@@ -103,7 +148,7 @@ const BetTrackerFix = () => {
     };
     
     fetchBets();
-  }, [selectedMonth, selectedYear, unitValue]);
+  }, [selectedMonth, selectedYear, unitValue, userId]); // Added userId as dependency
 
   // Calculate betting statistics
   const calculateStats = (betsData) => {
@@ -197,25 +242,57 @@ const BetTrackerFix = () => {
   };
 
   const handleSaveBet = async () => {
+    if (!userId) {
+      console.error('[BetTrackerFix] Error saving bet: User ID is not available. User might be logged out.');
+      setAuthErrorOpen(true);
+      return;
+    }
+    
+    console.log('[BetTrackerFix] handleSaveBet called.');
+    console.log('[BetTrackerFix] User ID:', userId);
+    console.log('[BetTrackerFix] Current Bet:', JSON.parse(JSON.stringify(currentBet)));
+    console.log('[BetTrackerFix] Edit Mode:', editMode);
+    
     try {
       const db = getDatabase();
-      const betsRef = ref(db, 'user_bets');
+      const userBetsPathRef = ref(db, `user_bets/${userId}`);
       
       if (editMode && currentBet.id) {
         // Update existing bet
-        const betRef = ref(db, `user_bets/${currentBet.id}`);
-        const { id, ...betData } = currentBet;
-        await set(betRef, betData);
+        console.log('[BetTrackerFix] Updating existing bet with ID:', currentBet.id);
+        const betRef = ref(db, `user_bets/${userId}/${currentBet.id}`);
+        const updatedBet = {
+          ...currentBet,
+          userId: userId, // Ensure userId is included
+          timestamp: Date.now() // Update timestamp
+        };
+        console.log('[BetTrackerFix] Path for update:', betRef.toString());
+        console.log('[BetTrackerFix] Data to update:', JSON.parse(JSON.stringify(updatedBet)));
+        await set(betRef, updatedBet);
+        console.log('[BetTrackerFix] Bet updated successfully');
       } else {
-        // Add new bet
-        const newBetRef = ref(db, `user_bets/${Date.now()}`);
-        await set(newBetRef, currentBet);
+        // Create new bet with a Firebase-generated unique ID
+        const newBetRef = push(userBetsPathRef);
+        const newBet = {
+          ...currentBet,
+          id: newBetRef.key,
+          userId: userId,
+          timestamp: Date.now()
+        };
+        console.log('[BetTrackerFix] Creating new bet with ID:', newBetRef.key);
+        console.log('[BetTrackerFix] Path for new bet:', newBetRef.toString());
+        console.log('[BetTrackerFix] Data for new bet:', JSON.parse(JSON.stringify(newBet)));
+        await set(newBetRef, newBet);
+        console.log('[BetTrackerFix] New bet created successfully');
       }
       
       // Refresh bets
+      console.log('[BetTrackerFix] Refreshing bets list after save');
+      const betsRef = ref(db, `user_bets/${userId}`);
       const snapshot = await get(betsRef);
       if (snapshot.exists()) {
         const betsData = snapshot.val();
+        console.log('[BetTrackerFix] Bets data fetched:', Object.keys(betsData).length, 'bets');
         const betsArray = Object.keys(betsData).map(key => ({
           id: key,
           ...betsData[key]
@@ -235,17 +312,23 @@ const BetTrackerFix = () => {
   };
 
   const handleDeleteBet = async (betId) => {
+    if (!userId) {
+      console.error("[BetTrackerFix] User not logged in, cannot delete bet.");
+      return;
+    }
     try {
+      console.log(`[BetTrackerFix] Deleting bet ${betId} for user ${userId}`);
       const db = getDatabase();
-      const betRef = ref(db, `user_bets/${betId}`);
+      const betRef = ref(db, `user_bets/${userId}/${betId}`);
       await set(betRef, null);
       
       // Update local state
       const updatedBets = bets.filter(bet => bet.id !== betId);
       setBets(updatedBets);
       calculateStats(updatedBets);
+      console.log(`[BetTrackerFix] Successfully deleted bet ${betId}`);
     } catch (error) {
-      console.error('Error deleting bet:', error);
+      console.error('[BetTrackerFix] Error deleting bet:', error);
     }
   };
 
@@ -296,7 +379,7 @@ const BetTrackerFix = () => {
   return (
     <Box sx={{ p: 2 }}>
       <Typography variant="h4" gutterBottom>
-        Bet Tracker (Fixed Version)
+        Bet Tracker
       </Typography>
       
       <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -647,6 +730,13 @@ const BetTrackerFix = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Authentication Error Dialog */}
+      <AuthErrorDialog 
+        open={authErrorOpen} 
+        onClose={() => setAuthErrorOpen(false)} 
+        message="You need to be signed in to add or edit bets. Would you like to sign in now?"
+      />
     </Box>
   );
 };

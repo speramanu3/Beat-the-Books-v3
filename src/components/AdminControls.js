@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import { Box, Button, Typography, CircularProgress, Paper } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { get, ref, set, getDatabase } from 'firebase/database';
@@ -18,10 +19,15 @@ const SUPPORTED_SPORTS = [
 const database = getDatabase();
 
 const AdminControls = () => {
+  const { currentUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [quotaInfo, setQuotaInfo] = useState(null);
+
+  if (!currentUser || currentUser.email !== 'sujay19@gmail.com') {
+    return null;
+  }
 
   // Function to manually fetch odds data directly from the API
   const refreshOdds = async () => {
