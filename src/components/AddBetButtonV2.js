@@ -188,8 +188,9 @@ const AddBetButtonV2 = ({ game, bookmaker, market, outcome, userId: propUserId, 
         
         // Odds and point information
         odds: safeOutcome.price,
-        point: safeOutcome.point !== undefined ? safeOutcome.point : null,
-        line: safeOutcome.point !== undefined ? safeOutcome.point : null, // Add line for consistency with BetTracker
+        // Ensure point/line values are always a string or number, never null/undefined
+        point: safeOutcome.point !== undefined && safeOutcome.point !== null ? safeOutcome.point : '',
+        line: safeOutcome.point !== undefined && safeOutcome.point !== null ? safeOutcome.point : '', // Add line for consistency with BetTracker
         
         // Bet details
         units: betDetails.units || '1',

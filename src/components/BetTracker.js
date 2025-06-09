@@ -815,8 +815,11 @@ const BetTracker = () => {
                             // Special handling for O/U (total) bets
                             if ((bet.market === 'Total' || bet.betType === 'total') && 
                                 (bet.outcome.toLowerCase() === 'over' || bet.outcome.toLowerCase() === 'under')) {
-                              const line = bet.point || bet.line || '';
-                              return `${bet.outcome} ${line}`;
+                              const line = bet.point || bet.line;
+                              // Only append the line if it's a valid value
+                              return line !== undefined && line !== null && line !== '' 
+                                ? `${bet.outcome} ${line}` 
+                                : `${bet.outcome}`;
                             }
                             // Special handling for spread bets
                             else if ((bet.market === 'Spread' || bet.betType === 'spread') && bet.point) {
@@ -834,10 +837,11 @@ const BetTracker = () => {
 
                         if (lowerTrimmedTeam === 'over' || lowerTrimmedTeam === 'under') {
                           // This is an Over/Under bet
-                          if (typeof bet.line !== 'undefined' && bet.line !== null && String(bet.line).trim() !== '') {
-                            return `${trimmedTeam} ${bet.line}`;
+                          const line = bet.point || bet.line;
+                          if (line !== undefined && line !== null && String(line).trim() !== '') {
+                            return `${trimmedTeam} ${line}`;
                           } else {
-                            return `${trimmedTeam} (No Line)`;
+                            return `${trimmedTeam}`;
                           }
                         } else if (bet.betType === 'moneyline') {
                           return trimmedTeam; // Display trimmed team name
