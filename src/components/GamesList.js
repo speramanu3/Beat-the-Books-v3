@@ -302,11 +302,19 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
   // Fetch games when component mounts or when sport changes
   useEffect(() => {
     fetchGames();
-  }, [selectedSport]);
+    // Clear the loading state after a short delay if no data is found
+    // This ensures we don't show loading indefinitely
+    const timeoutId = setTimeout(() => {
+      if (loading) setLoading(false);
+    }, 3000);
+    
+    return () => clearTimeout(timeoutId);
+  }, [selectedSport, userId]);
   
   // Function to force refresh data from API
   const forceRefresh = async () => {
     setRefreshing(true);
+    setLoading(true); // Show loading state
     try {
       // Call fetchGames with forceUpdate=true to bypass cache checks
       await fetchGames(true);
@@ -318,7 +326,14 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
   };
 
   const handleSportChange = (event, newValue) => {
+    // Reset loading state and clear games when changing sports
+    // to ensure we show loading indicator
+    setLoading(true);
+    setGames([]);
     setSelectedSport(newValue);
+    
+    // Immediately try to fetch games for the new sport
+    fetchGames();
   };
 
   const handleBookmakerChange = (bookmaker, checked) => {
@@ -340,6 +355,11 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
   };
 
   const filteredGames = useMemo(() => {
+    // First check if games array exists and has items
+    if (!games || games.length === 0) {
+      return [];
+    }
+    
     return games
       .filter(game => game.sport_key === selectedSport)
       .filter(game => game.bookmakers.some(bookmaker => 
@@ -347,6 +367,7 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
       ));
   }, [games, selectedSport, selectedBookmakers]);
 
+  // Show loading state, but with a timeout to prevent infinite loading
   if (loading) {
     return (
       <Typography variant="h6" sx={{ textAlign: 'center', my: 4 }}>
