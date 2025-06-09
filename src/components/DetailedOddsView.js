@@ -24,7 +24,7 @@ import { formatOdds, validateOdds } from '../utils/oddsProcessing';
 import useResponsiveLayout from '../hooks/useResponsiveLayout';
 import { getTeamDisplay } from '../utils/teamUtils';
 
-const DetailedOddsView = ({ game }) => {
+const DetailedOddsView = ({ game, hideAccordion = false }) => {
   const theme = useTheme();
   const { isMobile, tableSize } = useResponsiveLayout();
   const [expanded, setExpanded] = useState(false);
@@ -76,9 +76,9 @@ const DetailedOddsView = ({ game }) => {
         .flat();
     }, [marketKey]);
     
-    // For free users, limit the number of rows shown
-    const limitedOdds = isSubscribed ? odds : odds.slice(0, 4);
-    const hasMoreOdds = !isSubscribed && odds.length > 4;
+    // Show all odds data regardless of subscription status
+    const limitedOdds = odds;
+    const hasMoreOdds = false; // No longer hiding odds behind paywall
 
     return (
       <Box sx={{ mb: 3 }} role="region" aria-label={`${title} odds comparison`}>
@@ -184,28 +184,7 @@ const DetailedOddsView = ({ game }) => {
                 </TableRow>
               ))}
               
-              {/* Show locked row for free users if there are more odds */}
-              {hasMoreOdds && (
-                <TableRow
-                  sx={{
-                    backgroundColor: 'rgba(0, 0, 0, 0.04)',
-                    borderTop: '1px dashed rgba(0, 0, 0, 0.1)'
-                  }}
-                >
-                  <TableCell 
-                    colSpan={showPoints ? 4 : 3} 
-                    align="center"
-                    sx={{ py: 1.5 }}
-                  >
-                    <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <LockIcon fontSize="small" sx={{ mr: 1, opacity: 0.6 }} />
-                      <Typography variant="body2" color="text.secondary">
-                        {odds.length - 4} more sportsbooks available with Premium
-                      </Typography>
-                    </Box>
-                  </TableCell>
-                </TableRow>
-              )}
+              {/* All odds are now shown - no locked row */}
             </TableBody>
           </Table>
         </TableContainer>
@@ -217,6 +196,20 @@ const DetailedOddsView = ({ game }) => {
     setExpanded(isExpanded);
   };
 
+  // If hideAccordion is true, render content directly without the accordion wrapper
+  if (hideAccordion) {
+    return (
+      <Box sx={{ p: isMobile ? 1 : 2 }}>
+        <OddsTable title="Moneyline" marketKey="h2h" />
+        <OddsTable title="Spread" marketKey="spreads" showPoints={true} />
+        <OddsTable title="Over/Under" marketKey="totals" showPoints={true} />
+        
+        {/* No premium upgrade prompt - all data is freely available */}
+      </Box>
+    );
+  }
+
+  // Otherwise, render with the accordion wrapper
   return (
     <Accordion expanded={expanded} onChange={handleAccordionChange}>
       <AccordionSummary
@@ -231,33 +224,7 @@ const DetailedOddsView = ({ game }) => {
         <OddsTable title="Spread" marketKey="spreads" showPoints={true} />
         <OddsTable title="Over/Under" marketKey="totals" showPoints={true} />
         
-        {/* Subscription prompt for free users */}
-        {!isSubscribed && expanded && (
-          <Box 
-            sx={{ 
-              mt: 2, 
-              p: 2, 
-              backgroundColor: 'primary.main', 
-              color: 'primary.contrastText',
-              borderRadius: 1,
-              textAlign: 'center'
-            }}
-          >
-            <Typography variant="subtitle1" gutterBottom>
-              Upgrade to Premium for Full Access
-            </Typography>
-            <Typography variant="body2" sx={{ mb: 2 }}>
-              Get access to all sportsbooks and find the best odds every time.
-            </Typography>
-            <Button 
-              variant="contained" 
-              color="secondary"
-              size={isMobile ? "small" : "medium"}
-            >
-              Upgrade Now
-            </Button>
-          </Box>
-        )}
+        {/* No premium upgrade prompt - all data is freely available */}
       </AccordionDetails>
     </Accordion>
   );

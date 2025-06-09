@@ -463,6 +463,7 @@ const GameCard = ({ game, selectedBookmakers }) => {
                 selectedBookmakers={selectedBookmakers}
                 showHeader={false}
                 condensed={true}
+                hideAccordion={true}
               />
             </Box>
           </Collapse>
@@ -522,10 +523,7 @@ const GameCard = ({ game, selectedBookmakers }) => {
         </Grid>
       )}
 
-      {/* Detailed View - Only show in expanded mode on mobile */}
-      {(!isMobile || (isMobile && expanded)) && (
-        <DetailedOddsView game={filteredGame} />
-      )}
+      {/* Desktop view - detailed odds are shown in the accordion component */}
     </Paper>
   );
 };
