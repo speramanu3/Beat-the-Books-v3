@@ -416,30 +416,149 @@ const HomePage = ({ navigateTo }) => {
           </Paper>
         </Fade>
 
+        {/* New Section: Find the Best Odds */}
+        <Fade in={isLoaded} timeout={1200}>
+          <Paper 
+            elevation={6}
+            sx={{ 
+              p: { xs: 3, md: 5 }, 
+              my: 6, 
+              borderRadius: 3,
+              background: 'linear-gradient(135deg, #1e1e1e 0%, #2d2d2d 50%, #121212 100%)',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4)',
+              border: '1px solid rgba(57, 255, 20, 0.1)'
+            }}
+          >
+            <motion.div initial="hidden" animate="visible" variants={containerVariants}>
+              <motion.div variants={itemVariants}>
+                <Typography 
+                  variant={isMobile ? "h4" : "h3"} 
+                  component="h2" 
+                  gutterBottom 
+                  sx={{ 
+                    textAlign: 'center', 
+                    color: '#39FF14',
+                    fontWeight: 'bold',
+                    fontFamily: "'Orbitron', sans-serif",
+                    mb: 3,
+                    textShadow: '0 0 5px rgba(57, 255, 20, 0.5)'
+                  }}
+                >
+                  Find the Best Odds
+                </Typography>
+              </motion.div>
+              <motion.div variants={itemVariants}>
+                <Box sx={{ display: 'flex', justifyContent: 'center', my: 3, px: { xs: 0, md: 4 } }}>
+                  <img
+                    src="/Home Page Images/Odds Example.png"
+                    alt="Example of finding the best odds on Beat the Books"
+                    style={{ 
+                      maxWidth: '100%', 
+                      maxHeight: isMobile ? '300px' : '450px',
+                      height: 'auto', 
+                      borderRadius: '12px', 
+                      boxShadow: '0 8px 25px rgba(0,0,0,0.5)',
+                      border: '1px solid rgba(57, 255, 20, 0.2)'
+                    }}
+                  />
+                </Box>
+              </motion.div>
+              <motion.div variants={itemVariants}>
+                <Typography variant="h6" sx={{ color: '#f0f0f0', textAlign: 'center', mt: 2, maxWidth: '700px', mx: 'auto', lineHeight: 1.6 }}>
+                  Quickly compare odds from top sportsbooks. Our platform lays out all your options clearly, so you can spot the best lines and maximize your potential returns.
+                </Typography>
+              </motion.div>
+            </motion.div>
+          </Paper>
+        </Fade>
+
+        {/* New Section: Use Expected Values */}
+        <Fade in={isLoaded} timeout={1400}>
+          <Paper 
+            elevation={6}
+            sx={{ 
+              p: { xs: 3, md: 5 }, 
+              my: 6, 
+              borderRadius: 3,
+              background: 'linear-gradient(135deg, #2d2d2d 0%, #121212 50%, #1e1e1e 100%)',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.4)',
+              border: '1px solid rgba(57, 255, 20, 0.1)'
+            }}
+          >
+            <motion.div initial="hidden" animate="visible" variants={containerVariants}>
+              <motion.div variants={itemVariants}>
+                <Typography 
+                  variant={isMobile ? "h4" : "h3"} 
+                  component="h2" 
+                  gutterBottom 
+                  sx={{ 
+                    textAlign: 'center', 
+                    color: '#39FF14', 
+                    fontWeight: 'bold',
+                    fontFamily: "'Orbitron', sans-serif",
+                    mb: 3,
+                    textShadow: '0 0 5px rgba(57, 255, 20, 0.5)'
+                  }}
+                >
+                  Use Expected Value to Your Advantage
+                </Typography>
+              </motion.div>
+              <motion.div variants={itemVariants}>
+                <Box sx={{ display: 'flex', justifyContent: 'center', my: 3, px: { xs: 0, md: 4 } }}>
+                  <img
+                    src="/Home Page Images/EVs Example.png"
+                    alt="Example of Positive EV bets on Beat the Books"
+                    style={{ 
+                      maxWidth: '100%', 
+                      maxHeight: isMobile ? '300px' : '450px',
+                      height: 'auto', 
+                      borderRadius: '12px', 
+                      boxShadow: '0 8px 25px rgba(0,0,0,0.5)',
+                      border: '1px solid rgba(57, 255, 20, 0.2)'
+                    }}
+                  />
+                </Box>
+              </motion.div>
+              <motion.div variants={itemVariants}>
+                <Typography variant="h6" sx={{ color: '#f0f0f0', textAlign: 'center', mt: 2, maxWidth: '700px', mx: 'auto', lineHeight: 1.6 }}>
+                  Leverage our +EV betting tools to identify wagers with a positive expected value. Make smarter, data-driven decisions and turn the odds in your favor.
+                </Typography>
+              </motion.div>
+            </motion.div>
+          </Paper>
+        </Fade>
+
       {/* Featured Sports Section */}
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3, duration: 0.6 }}
+        style={{ marginBottom: '4rem' }}
       >
         <Typography 
           variant="h4" 
           component="h2" 
+          gutterBottom 
           sx={{ 
-            mb: 1, 
+            textAlign: 'center', 
             color: '#fff',
             fontWeight: 'bold',
-            textAlign: 'center',
+            fontFamily: "'Orbitron', sans-serif",
+            mb: 4,
             position: 'relative',
-            display: 'inline-block',
-            left: '50%',
-            transform: 'translateX(-50%)',
             '&::after': {
               content: '""',
+              display: 'block',
               position: 'absolute',
               bottom: -10,
-              left: '25%',
+              left: '50%',
+              transform: 'translateX(-50%)',
               width: '50%',
+              maxWidth: '150px',
               height: 4,
               backgroundColor: '#39FF14',
               borderRadius: 2
@@ -452,7 +571,7 @@ const HomePage = ({ navigateTo }) => {
         <Typography 
           variant="body1" 
           sx={{ 
-            mt: 4, // Increased top margin to add more space after the green line
+            mt: 4,
             mb: 4, 
             color: '#aaa',
             textAlign: 'center',
@@ -475,7 +594,7 @@ const HomePage = ({ navigateTo }) => {
             >
               <Card 
                 sx={{ 
-                  height: 300, // Fixed height for all cards
+                  height: 300,
                   display: 'flex',
                   flexDirection: 'column',
                   backgroundColor: 'rgba(30, 30, 30, 0.7)',

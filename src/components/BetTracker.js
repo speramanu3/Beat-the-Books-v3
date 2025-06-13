@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { auth } from '../firebaseConfig'; // Assuming firebaseConfig.js is in src/
 import { addBetAddedListener, syncCheckedBets } from '../utils/betSyncUtils';
+import PremiumBetAnalytics from './PremiumBetAnalytics';
 import { 
   Box, 
   Typography, 
@@ -903,11 +904,21 @@ const BetTracker = () => {
         aria-labelledby="analytics-tab"
       >
         {activeTab === 1 && (
-          <BetTrackerCharts 
-            bets={bets} 
-            selectedMonth={selectedMonth} 
-            selectedYear={selectedYear} 
-          />
+          <>
+            <BetTrackerCharts 
+              bets={bets} 
+              selectedMonth={selectedMonth} 
+              selectedYear={selectedYear} 
+            />
+            
+            {/* Premium Analytics Section */}
+            <Box mt={4}>
+              <Typography variant="h5" gutterBottom sx={{ fontWeight: 'bold' }}>
+                Premium Analytics
+              </Typography>
+              <PremiumBetAnalytics bets={bets} />
+            </Box>
+          </>
         )}
       </div>
       

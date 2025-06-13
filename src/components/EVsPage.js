@@ -397,43 +397,32 @@ const EVsPage = () => {
     }
     
     try {
-      // Different width calculations based on market type
-      if (market === 'h2h') {
-        // Moneyline width calculation
-        // Formula: abs(if(and(btbPrice<0,referenceCounterOdds<0),abs(min(btbPrice,btbPrice of the other team))-abs(max(btbPrice,referenceCounterOdds)),
-        //             if(and(btbPrice<0,referenceCounterOdds>0),abs(btbPrice)-abs(referenceCounterOdds),
-        //                if(and(btbPrice>0,referenceCounterOdds<0),abs(referenceCounterOdds)-abs(btbPrice),"error"))))
-        
-        let width;
-        
-        if (btbPrice < 0 && referenceCounterOdds < 0) {
-          // Both negative
-          width = Math.abs(Math.min(btbPrice, referenceCounterOdds)) - Math.abs(Math.max(btbPrice, referenceCounterOdds));
-        } else if (btbPrice < 0 && referenceCounterOdds > 0) {
-          // btbPrice negative, referenceCounterOdds positive
-          width = Math.abs(btbPrice) - Math.abs(referenceCounterOdds);
-        } else if (btbPrice > 0 && referenceCounterOdds < 0) {
-          // btbPrice positive, referenceCounterOdds negative
-          width = Math.abs(referenceCounterOdds) - Math.abs(btbPrice);
-        } else {
-          // Both positive or other cases
-          return null; // "error" case in the formula
-        }
-        
-        return Math.abs(width);
-      } 
-      else if (market === 'spreads') {
-        // For spread markets, the width is the difference between the odds for the same point spread
-        // We'll use a simpler calculation - just the absolute difference between the odds
-        return Math.abs(btbPrice - referenceCounterOdds);
-      } 
-      else if (market === 'totals') {
-        // For total markets, similar to spreads
-        return Math.abs(btbPrice - referenceCounterOdds);
+      // Apply the same width calculation formula for all market types
+      // Formula: abs(if(and(R2<0,X2<0),abs(min(R2,AB2))-abs(max(R2,X2)),if(and(R2<0,X2>0),abs(R2)-abs(X2),if(and(R2>0,X2<0),abs(X2)-abs(R2),"ERROR"))))
+      // where R2 is pinnacle odds (btbPrice), X2 is calculated counter odds (referenceCounterOdds)
+      
+      let width;
+      
+      if (btbPrice < 0 && referenceCounterOdds < 0) {
+        // Both negative
+        width = Math.abs(Math.min(btbPrice, referenceCounterOdds)) - Math.abs(Math.max(btbPrice, referenceCounterOdds));
+      } else if (btbPrice < 0 && referenceCounterOdds > 0) {
+        // btbPrice negative, referenceCounterOdds positive
+        width = Math.abs(btbPrice) - Math.abs(referenceCounterOdds);
+      } else if (btbPrice > 0 && referenceCounterOdds < 0) {
+        // btbPrice positive, referenceCounterOdds negative
+        width = Math.abs(referenceCounterOdds) - Math.abs(btbPrice);
+      } else if (btbPrice > 0 && referenceCounterOdds > 0) {
+        // Both positive - this case was missing in the original implementation
+        // For this case, we'll use the absolute difference between the odds
+        width = Math.abs(Math.abs(btbPrice) - Math.abs(referenceCounterOdds));
+      } else {
+        // Other cases (should not happen, but just in case)
+        console.log('Unexpected odds values:', { btbPrice, referenceCounterOdds });
+        return null;
       }
       
-      // Default case
-      return null;
+      return Math.abs(width);
     } catch (error) {
       console.error('Error calculating width:', error);
       return null;
@@ -443,7 +432,7 @@ const EVsPage = () => {
   // Format width for display
   const formatWidth = (width) => {
     if (width === null || width === undefined) return 'N/A';
-    return width.toFixed(2);
+    return Math.floor(width);
   };
   
   // Convert American odds to implied probability
@@ -1190,6 +1179,44 @@ const EVsPage = () => {
         Expected Value Bets
       </Typography>
       
+      {/* Sign-in CTA for non-authenticated users */}
+      {!userId && (
+        <Paper 
+          elevation={3} 
+          sx={{ 
+            p: 2, 
+            mb: 3, 
+            backgroundColor: mode === 'light' ? 'rgba(0, 126, 51, 0.1)' : 'rgba(57, 255, 20, 0.1)',
+            borderRadius: 2,
+            border: '1px solid',
+            borderColor: mode === 'light' ? 'rgba(0, 126, 51, 0.3)' : 'rgba(57, 255, 20, 0.3)',
+          }}
+        >
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="h6" sx={{ mb: { xs: 1, sm: 0 } }}>
+              Sign in to see expected value calculations and betting opportunities
+            </Typography>
+            <Button 
+              variant="contained" 
+              color="primary"
+              size="large"
+              onClick={() => {
+                // Find the Header component's auth modal open function
+                const header = document.querySelector('header');
+                if (header) {
+                  // Dispatch a custom event that the Header component will listen for
+                  const event = new CustomEvent('open-auth-modal', { detail: { tab: 0 } });
+                  window.dispatchEvent(event);
+                }
+              }}
+              sx={{ fontWeight: 'bold' }}
+            >
+              Sign In
+            </Button>
+          </Box>
+        </Paper>
+      )}
+      
       {/* Sport tabs */}
       <Paper sx={{ mb: 3 }}>
         <Tabs
@@ -1214,7 +1241,14 @@ const EVsPage = () => {
         <Typography color="error" sx={{ textAlign: 'center', my: 4 }}>
           {error} {/* Display primary error message */}
         </Typography>
-      ) : (
+      ) : !userId ? (
+        // If user is not signed in, don't show any EV data
+        <Box sx={{ textAlign: 'center', py: 3 }}>
+          <Typography variant="subtitle1" color="text.secondary">
+            Please sign in to view expected value bets and calculations.
+          </Typography>
+        </Box>
+      ) : (  
         <>
           <Grid container spacing={3} sx={{ mb: 3 }}>
             <Grid item xs={12} md={8}>

@@ -12,6 +12,7 @@ import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import { useFavorites } from '../contexts/FavoritesContext';
 import { useAuth } from '../contexts/AuthContext';
+import PremiumEVBadge from './PremiumEVBadge';
 
 const GameCard = ({ game, selectedBookmakers }) => {
   const theme = useTheme();
@@ -19,6 +20,9 @@ const GameCard = ({ game, selectedBookmakers }) => {
   const [expanded, setExpanded] = useState(false);
   const { currentUser } = useAuth();
   const { isFavorite, toggleFavorite } = useFavorites();
+  
+  // Extract EV data if available from GamesList component
+  const hasEvData = game.maxEv !== undefined && game.bestBet !== undefined;
 
   // Create a filtered game object with only selected bookmakers
   const filteredGame = useMemo(() => ({
@@ -391,7 +395,7 @@ const GameCard = ({ game, selectedBookmakers }) => {
             sx={{ 
               display: 'block',
               textAlign: 'center',
-              mb: 1.5,
+              mb: 1,
               fontSize: '0.7rem'
             }}
             role="time"
@@ -399,6 +403,13 @@ const GameCard = ({ game, selectedBookmakers }) => {
           >
             {format(new Date(game.commence_time), 'EEE, MMM d • h:mm a')}
           </Typography>
+          
+          {/* Premium EV Badge for Mobile */}
+          {hasEvData && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 1 }}>
+              <PremiumEVBadge bestBet={game.bestBet} maxEv={game.maxEv} />
+            </Box>
+          )}
 
           {/* Best Odds Display - Always visible */}
           <Grid container spacing={2}>
@@ -491,6 +502,13 @@ const GameCard = ({ game, selectedBookmakers }) => {
               >
                 {format(new Date(game.commence_time), 'EEE, MMM d • h:mm a')}
               </Typography>
+              
+              {/* Premium EV Badge for Desktop */}
+              {hasEvData && (
+                <Box sx={{ mt: 1 }}>
+                  <PremiumEVBadge bestBet={game.bestBet} maxEv={game.maxEv} />
+                </Box>
+              )}
             </Box>
           </Grid>
 

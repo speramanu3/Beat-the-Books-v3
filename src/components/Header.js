@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   AppBar, 
   Toolbar, 
@@ -57,12 +57,28 @@ const Header = ({ currentPage, navigateTo }) => {
     handleMobileMenuClose();
   };
   
+  // Listen for custom auth modal open events from other components
+  useEffect(() => {
+    const handleOpenAuthModalEvent = (event) => {
+      console.log('Received open-auth-modal event', event.detail);
+      const tabIndex = event.detail?.tab ?? 0;
+      handleAuthModalOpen(tabIndex);
+    };
+    
+    window.addEventListener('open-auth-modal', handleOpenAuthModalEvent);
+    
+    return () => {
+      window.removeEventListener('open-auth-modal', handleOpenAuthModalEvent);
+    };
+  }, []);
+  
   // Navigation links
   const navLinks = [
     { name: 'Home', page: 'home' },
     { name: 'Odds', page: 'odds' },
     { name: 'EVs', page: 'evs' },
     { name: 'My Bets', page: 'bets' },
+    { name: 'Premium', page: 'subscription' },
   ];
   
   return (

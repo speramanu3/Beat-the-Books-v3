@@ -10,8 +10,8 @@ const API_BASE_URL = 'https://api.the-odds-api.com/v4';
 const API_KEY = 'a96c15675d0a120680eed5d628c4c773'; // Using the same key as in server/index.js
 const SUPPORTED_SPORTS = [
   'basketball_nba',
-  'football_nfl',
-  'hockey_nhl',
+  'americanfootball_nfl',
+  'icehockey_nhl',
   'baseball_mlb'
 ];
 

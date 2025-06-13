@@ -2,8 +2,10 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Box, Grid, Typography, Tabs, Tab, Paper, Button, CircularProgress, Tooltip } from '@mui/material';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import { useAppTheme } from '../contexts/ThemeContext';
+import { useSubscription } from '../contexts/SubscriptionContext';
 import GameCard from './GameCard';
 import SportsbookFilter from './SportsbookFilter';
+
 import axios from 'axios';
 import config from '../config';
 import { database } from '../firebaseConfig';
@@ -34,6 +36,7 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [userId, setUserId] = useState(null);
   const { themeMode } = useAppTheme();
+  const { hasPremium } = useSubscription();
   
   // Handle authentication state
   useEffect(() => {
@@ -63,22 +66,19 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
     const lastUpdate = new Date(parseInt(timestamp));
     const now = new Date();
     
-    // Get today's 8 AM ET
-    const todayEight = new Date();
-    todayEight.setHours(8, 0, 0, 0);
-    todayEight.setMinutes(0, 0, 0);
+    // Calculate time difference in milliseconds
+    const timeDiff = now - lastUpdate;
     
-    // Convert to ET by adding 5 hours (ET is UTC-5)
-    const etOffset = 5;
-    todayEight.setHours(todayEight.getHours() + etOffset);
-
-    // For testing, log the times
+    // Convert to hours (1000ms * 60s * 60min = 3,600,000ms in an hour)
+    const hoursDiff = timeDiff / 3600000;
+    
+    // For logging purposes
     console.log(' Current time:', now.toLocaleString('en-US', { timeZone: 'America/New_York' }));
     console.log(' Last update:', lastUpdate.toLocaleString('en-US', { timeZone: 'America/New_York' }));
-    console.log(' Today 8 AM ET:', todayEight.toLocaleString('en-US', { timeZone: 'America/New_York' }));
+    console.log(' Hours since last update:', hoursDiff.toFixed(2));
     
-    // Update if it's past 8 AM ET today and our last update was before 8 AM ET today
-    const needsUpdate = now >= todayEight && lastUpdate < todayEight;
+    // Update if the data is more than 2 hours old
+    const needsUpdate = hoursDiff >= 2;
     console.log(' Needs update:', needsUpdate);
     return needsUpdate;
   };
@@ -354,18 +354,21 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
     setSelectedBookmakers([]);
   };
 
+  // Calculate expected value for a game based on odds from different bookmakers
   const filteredGames = useMemo(() => {
-    // First check if games array exists and has items
     if (!games || games.length === 0) {
       return [];
     }
-    
-    return games
-      .filter(game => game.sport_key === selectedSport)
-      .filter(game => game.bookmakers.some(bookmaker => 
-        selectedBookmakers.includes(bookmaker.title)
-      ));
-  }, [games, selectedSport, selectedBookmakers]);
+    // If all available bookmakers are selected, no need to filter by bookmaker
+    if (availableBookmakers.length === selectedBookmakers.length) {
+        return games;
+    }
+    return games.filter(game =>
+        game.bookmakers && game.bookmakers.some(bookmaker =>
+            selectedBookmakers.includes(bookmaker.title)
+        )
+    );
+  }, [games, selectedBookmakers, availableBookmakers]);
 
   // Show loading state, but with a timeout to prevent infinite loading
   if (loading) {
@@ -405,6 +408,40 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
         Beat the Odds
       </Typography>
       
+      {/* Sign-in CTA for non-authenticated users */}
+      {!userId && (
+        <Paper 
+          elevation={3} 
+          sx={{ 
+            p: 2, 
+            mb: 3, 
+            backgroundColor: themeMode === 'light' ? 'rgba(0, 126, 51, 0.1)' : 'rgba(57, 255, 20, 0.1)',
+            borderRadius: 2,
+            border: '1px solid',
+            borderColor: themeMode === 'light' ? 'rgba(0, 126, 51, 0.3)' : 'rgba(57, 255, 20, 0.3)',
+          }}
+        >
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', justifyContent: 'space-between' }}>
+            <Typography variant="h6" sx={{ mb: { xs: 1, sm: 0 } }}>
+              Sign in to see all available odds and betting options
+            </Typography>
+            <Button 
+              variant="contained" 
+              color="primary"
+              size="large"
+              onClick={() => {
+                // Dispatch a custom event that the Header component will listen for
+                const event = new CustomEvent('open-auth-modal', { detail: { tab: 0 } });
+                window.dispatchEvent(event);
+              }}
+              sx={{ fontWeight: 'bold' }}
+            >
+              Sign In
+            </Button>
+          </Box>
+        </Paper>
+      )}
+      
       <Paper sx={{ mb: 3 }}>
         <Tabs
           value={selectedSport}
@@ -440,10 +477,7 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
         <Typography variant="caption" color="text.secondary" display="block">
           Next Update: {lastUpdated ? (() => {
             const nextUpdate = new Date(lastUpdated);
-            nextUpdate.setHours(8, 0, 0, 0);
-            if (new Date() >= nextUpdate) {
-              nextUpdate.setDate(nextUpdate.getDate() + 1);
-            }
+            nextUpdate.setHours(nextUpdate.getHours() + 2); // Changed to +2 hours
             return nextUpdate.toLocaleString('en-US', {
               timeZone: 'America/New_York',
               month: 'short',
@@ -464,8 +498,16 @@ const GamesList = ({ initialSport = 'basketball_nba' }) => {
         onSelectAll={handleSelectAllBookmakers}
         onClearAll={handleClearAllBookmakers}
       />
+      
 
-      {filteredGames.length === 0 ? (
+      {!userId ? (
+        // Don't show any game data if user is not signed in
+        <Box sx={{ textAlign: 'center', py: 3 }}>
+          <Typography variant="subtitle1" color="text.secondary">
+            Please sign in to view odds and betting options.
+          </Typography>
+        </Box>
+      ) : filteredGames.length === 0 ? (
         <Typography variant="h6" sx={{ textAlign: 'center', my: 4 }}>
           No {SPORT_LABELS[selectedSport]} games available at the moment
         </Typography>
